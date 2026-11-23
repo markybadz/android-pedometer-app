@@ -2,10 +2,10 @@ name: Build APK
 
 # Builds the app on every push and publishes it as the "latest" release,
 # so the APK is always at:
-#   https://github.com/markybadz/android-pedometer/releases/latest/download/pedometer.apk
+#   https://github.com/markybadz/android-pedometer-app/releases/latest/download/pedometer.apk
 on:
   push:
-    branches: [ master, gradle-migration ]
+    branches: [ master ]
   workflow_dispatch:
 
 permissions:
