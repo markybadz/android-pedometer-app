@@ -39,6 +39,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 import java.text.DateFormat;
@@ -136,6 +137,12 @@ public class Pedometer extends Activity {
     private TextView mCalorieGoalView;
     private TextView mWatchView;
     private TextView mPaiView;
+    private View mWatchCard;
+    private View mPaiCard;
+    private ProgressBar mStepRing;
+    private TextView mStepGoalView;
+    private ProgressBar mCalorieBar;
+    private ProgressBar mPaiBar;
     private final Handler mWatchHandler = new Handler();
     private final Runnable mWatchRefresh = new Runnable() {
         public void run() {
@@ -148,11 +155,11 @@ public class Pedometer extends Activity {
     private void refreshWatch() {
         if (mWatchView == null || mPedometerSettings == null) return;
         if (!mPedometerSettings.isWatchEnabled()) {
-            mWatchView.setVisibility(View.GONE);
-            mPaiView.setVisibility(View.GONE);
+            mWatchCard.setVisibility(View.GONE);
+            mPaiCard.setVisibility(View.GONE);
             return;
         }
-        mWatchView.setVisibility(View.VISIBLE);
+        mWatchCard.setVisibility(View.VISIBLE);
         mWatchView.setOnClickListener(null);
 
         if (WatchSteps.needsProviderUpdate(this)) {
@@ -162,7 +169,7 @@ public class Pedometer extends Activity {
         }
         if (!WatchSteps.isAvailable(this)) {
             mWatchView.setText(R.string.watch_no_health_connect);
-            mPaiView.setVisibility(View.GONE);
+            mPaiCard.setVisibility(View.GONE);
             return;
         }
         WatchSteps.hasPermissions(this, new WatchSteps.Callback<Boolean>() {
@@ -184,7 +191,7 @@ public class Pedometer extends Activity {
 
     private void showWatchPrompt(String text, final Intent intent, final boolean forResult) {
         mWatchView.setText(text);
-        mPaiView.setVisibility(View.GONE);
+        mPaiCard.setVisibility(View.GONE);
         mWatchView.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 try {
@@ -230,16 +237,18 @@ public class Pedometer extends Activity {
                 new WatchSteps.Callback<WatchSteps.ActivityScore>() {
             public void onResult(WatchSteps.ActivityScore score) {
                 if (isFinishing()) return;
-                mPaiView.setVisibility(View.VISIBLE);
+                mPaiCard.setVisibility(View.VISIBLE);
                 if (score.samples == 0) {
                     mPaiView.setText(R.string.pai_no_heart_rate);
+                    mPaiBar.setProgress(0);
                 } else {
                     mPaiView.setText(getString(R.string.pai_value, score.weekly, score.today));
+                    mPaiBar.setProgress(Math.min(score.weekly, 100));
                 }
             }
             public void onError(String message) {
                 if (isFinishing()) return;
-                mPaiView.setVisibility(View.GONE);
+                mPaiCard.setVisibility(View.GONE);
             }
         });
     }
@@ -251,7 +260,19 @@ public class Pedometer extends Activity {
         int percent = goal > 0 ? Math.round(100f * Math.max(0, mCaloriesValue) / goal) : 0;
         mCalorieGoalView.setText(getString(
                 percent >= 100 ? R.string.calorie_goal_reached : R.string.calorie_goal_progress,
-                mCaloriesValue, goal, percent));
+                Math.max(0, mCaloriesValue), goal, percent));
+        if (mCalorieBar != null) mCalorieBar.setProgress(Math.min(percent, 100));
+    }
+
+    /** Fills the step ring toward the daily step goal. */
+    private void showStepProgress() {
+        if (mStepRing == null || mPedometerSettings == null) return;
+        int goal = mPedometerSettings.getStepGoal();
+        mStepGoalView.setText(getString(R.string.step_goal_progress,
+                String.format(Locale.getDefault(), "%,d", goal)));
+        // Ring max is 1000 for a smooth arc.
+        int progress = goal > 0 ? (int) Math.min(1000L, 1000L * Math.max(0, mStepValue) / goal) : 0;
+        mStepRing.setProgress(progress);
     }
     
     @Override
@@ -350,7 +371,14 @@ public class Pedometer extends Activity {
         mCalorieGoalView = (TextView) findViewById(R.id.calorie_goal_value);
         mWatchView = (TextView) findViewById(R.id.watch_value);
         mPaiView = (TextView) findViewById(R.id.pai_value);
+        mWatchCard = findViewById(R.id.watch_card);
+        mPaiCard = findViewById(R.id.pai_card);
+        mStepRing = (ProgressBar) findViewById(R.id.step_ring);
+        mStepGoalView = (TextView) findViewById(R.id.step_goal_text);
+        mCalorieBar = (ProgressBar) findViewById(R.id.calorie_bar);
+        mPaiBar = (ProgressBar) findViewById(R.id.pai_bar);
         showCalorieGoal();
+        showStepProgress();
         mWatchHandler.removeCallbacks(mWatchRefresh);
         mWatchHandler.post(mWatchRefresh);
     }
@@ -583,7 +611,8 @@ public class Pedometer extends Activity {
             switch (msg.what) {
                 case STEPS_MSG:
                     mStepValue = (int)msg.arg1;
-                    mStepValueView.setText("" + mStepValue);
+                    mStepValueView.setText(String.format(Locale.getDefault(), "%,d", mStepValue));
+                    showStepProgress();
                     break;
                 case PACE_MSG:
                     mPaceValue = msg.arg1;

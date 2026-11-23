@@ -154,6 +154,11 @@ public class PedometerSettings {
         return mSettings.getString("watch_source", WatchSteps.SOURCE_ZEPP);
     }
 
+    /** Daily step goal, for the ring on the main screen. */
+    public int getStepGoal() {
+        return parseInt(mSettings.getString("step_goal", "8000"), 8000);
+    }
+
     /** Daily calorie goal in kcal. */
     public int getCalorieGoal() {
         return parseInt(mSettings.getString("calorie_goal", "300"), 300);
