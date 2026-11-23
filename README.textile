@@ -18,6 +18,12 @@ It counts your steps by using the sensors in the phone.
 
 It calculates the pace (steps per minute), and can help you maintain a desired pace by speaking to you.
 
+h2. Screenshots
+
+_Preview mock-ups of the v2.0 design, with sample data._
+
+!docs/screenshots/preview-main.png(Main screen with Amazfit watch connected)! !docs/screenshots/preview-firstrun.png(Main screen before connecting the watch)! !docs/screenshots/preview-history.png(History screen)!
+
 h2. New in v2.0
 
 * *Amazfit watch support:* shows your watch's steps, distance and active calories. The Zepp app (or Zepp Life for older bands) syncs the watch to Health Connect, and Pedometer reads them from there. Turn it on in Settings > Amazfit watch.
