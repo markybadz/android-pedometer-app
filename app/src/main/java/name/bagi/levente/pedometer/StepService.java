@@ -109,6 +109,26 @@ public class StepService extends Service {
     private SpeakingTimer mSpeakingTimer;
     
     private PowerManager.WakeLock wakeLock;
+    /** True when the step-counter chip counts (no wake lock needed). */
+    private boolean mUsingStepCounter;
+    /** Last cumulative value from the step-counter chip, or -1 before the first reading. */
+    private long mLastCounter = -1;
+    /** State key: last step-counter value, to catch up after the service is killed or the phone reboots. */
+    private static final String KEY_COUNTER = "step_counter_last";
+    /** How long the step-counter chip may batch steps while the phone sleeps (5 minutes). */
+    private static final int COUNTER_BATCH_US = 5 * 60 * 1000 * 1000;
+    private int mLastSavedSteps;
+
+    // Sharing with Health Connect (Google Health): steps are collected into
+    // blocks of up to 15 minutes, then written as one record each.
+    private static final long SHARE_BLOCK_MS = 15 * 60 * 1000;
+    private static final String KEY_SHARE_START = "share_block_start";
+    private static final String KEY_SHARE_STEPS = "share_block_steps";
+    /** State key: when steps were last written to Health Connect (shown on the main screen). */
+    public static final String KEY_LAST_SHARED = "share_last_written";
+    private long mShareStart;
+    private int mShareSteps;
+    private int mLastNotifiedSteps;
     private NotificationManager mNM;
 
     private int mSteps;
@@ -147,11 +167,12 @@ public class StepService extends Service {
         mUtils.setService(this);
         mUtils.initTTS();
 
-        acquireWakeLock();
-        
         // Start detecting
         mStepDetector = new StepDetector();
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        mLastCounter = mState.getLong(KEY_COUNTER, -1);
+        mShareStart = mState.getLong(KEY_SHARE_START, 0);
+        mShareSteps = mState.getInt(KEY_SHARE_STEPS, 0);
         registerDetector();
 
         // Register our receiver for the ACTION_SCREEN_OFF action. This will make our receiver
@@ -162,6 +183,7 @@ public class StepService extends Service {
         // Must be the first listener, so a step taken just after midnight
         // is counted towards the new day.
         mStepDetector.addStepListener(mDayWatcher);
+        mStepDetector.addStepListener(mShareFeed);
 
         mStepDisplayer = new StepDisplayer(mPedometerSettings, mUtils);
         mStepDisplayer.setSteps(mSteps = mState.getInt("steps", 0));
@@ -171,7 +193,10 @@ public class StepService extends Service {
         mPaceNotifier     = new PaceNotifier(mPedometerSettings, mUtils);
         mPaceNotifier.setPace(mPace = mState.getInt("pace", 0));
         mPaceNotifier.addListener(mPaceListener);
-        mStepDetector.addStepListener(mPaceNotifier);
+        // With the step-counter chip, steps can arrive in batches after the
+        // phone wakes, which would make pace meaningless; pace then comes
+        // from the step detector chip instead (see mHardwarePaceListener).
+        mStepDetector.addStepListener(mPaceFeed);
 
         mDistanceNotifier = new DistanceNotifier(mDistanceListener, mPedometerSettings, mUtils);
         mDistanceNotifier.setDistance(mDistance = mState.getFloat("distance", 0));
@@ -221,11 +246,14 @@ public class StepService extends Service {
         unregisterReceiver(mReceiver);
         unregisterDetector();
         
+        flushSharedSteps();
         saveState();
 
         stopForeground(true);
 
-        wakeLock.release();
+        releaseWakeLock();
+        // A user stop: don't count the steps walked while stopped on the next start.
+        mState.edit().remove(KEY_COUNTER).apply();
         
         super.onDestroy();
         
@@ -248,6 +276,8 @@ public class StepService extends Service {
         mStateEditor.putFloat("speed", mSpeed);
         mStateEditor.putFloat("calories", mCalories);
         mStateEditor.putString(KEY_DAY, mDay);
+        mStateEditor.putLong(KEY_SHARE_START, mShareStart);
+        mStateEditor.putInt(KEY_SHARE_STEPS, mShareSteps);
         mStateEditor.apply();
     }
 
@@ -278,11 +308,51 @@ public class StepService extends Service {
         String today = LocalDate.now().toString();
         if (mDay != null && !today.equals(mDay) && mStepDisplayer != null) {
             Log.i(TAG, "New day: archiving " + mSteps + " steps for " + mDay);
+            flushSharedSteps(); // keep each shared block inside one day
             History.saveDay(this, mDay, mSteps, mCalories);
             mDay = today;
             resetValues();
             saveState();
         }
+    }
+
+    /** Collects steps for Health Connect, writing a block every 15 minutes. */
+    private final StepListener mShareFeed = new StepListener() {
+        public void onStep() {
+            if (mPedometerSettings == null || !mPedometerSettings.isSharingEnabled()) return;
+            long now = System.currentTimeMillis();
+            if (mShareSteps == 0) mShareStart = now;
+            mShareSteps++;
+            if (now - mShareStart >= SHARE_BLOCK_MS) {
+                flushSharedSteps();
+            }
+        }
+        public void passValue() {
+        }
+    };
+
+    /** Writes the collected block of steps to Health Connect and starts a new one. */
+    private void flushSharedSteps() {
+        if (mShareSteps <= 0 || mPedometerSettings == null) return;
+        final int steps = mShareSteps;
+        long start = mShareStart;
+        long end = System.currentTimeMillis();
+        double meters = steps * mPedometerSettings.getStepLengthMeters();
+        mShareSteps = 0;
+        mShareStart = 0;
+        if (!mPedometerSettings.isSharingEnabled()) return;
+        WatchSteps.writeSteps(this, start, end, steps, meters, new WatchSteps.Callback<Boolean>() {
+            public void onResult(Boolean written) {
+                if (written) {
+                    mState.edit().putLong(KEY_LAST_SHARED, System.currentTimeMillis()).apply();
+                } else {
+                    Log.i(TAG, "Not allowed to write steps to Health Connect");
+                }
+            }
+            public void onError(String message) {
+                Log.w(TAG, "Sharing " + steps + " steps failed: " + message);
+            }
+        });
     }
 
     private final StepListener mDayWatcher = new StepListener() {
@@ -293,13 +363,57 @@ public class StepService extends Service {
         }
     };
 
-    /** Forwards steps from the built-in step detector chip. */
+    /** Forwards steps from the built-in step detector chip (used when there's no counter chip). */
     private final SensorEventListener mHardwareStepListener = new SensorEventListener() {
         public void onSensorChanged(SensorEvent event) {
             // TYPE_STEP_DETECTOR fires once per step.
             mStepDetector.onExternalStep();
         }
         public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        }
+    };
+
+    /**
+     * Counts with the step-counter chip. It keeps counting in hardware while
+     * the phone sleeps and reports a running total, so no wake lock is needed:
+     * the difference from the last reading is the number of new steps.
+     */
+    private final SensorEventListener mCounterListener = new SensorEventListener() {
+        public void onSensorChanged(SensorEvent event) {
+            long value = (long) event.values[0];
+            long steps;
+            if (mLastCounter < 0) {
+                steps = 0;                       // first reading: just the baseline
+            } else if (value < mLastCounter) {
+                steps = value;                   // phone rebooted: chip restarted from 0
+            } else {
+                steps = value - mLastCounter;
+            }
+            mLastCounter = value;
+            mState.edit().putLong(KEY_COUNTER, value).apply();
+            if (steps > 0 && steps < 100000) {
+                mStepDetector.onExternalSteps((int) steps);
+            }
+        }
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        }
+    };
+
+    /** Live pace from the step detector chip while the counter chip does the counting. */
+    private final SensorEventListener mHardwarePaceListener = new SensorEventListener() {
+        public void onSensorChanged(SensorEvent event) {
+            if (mPaceNotifier != null) mPaceNotifier.onStep();
+        }
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        }
+    };
+
+    /** Passes counted steps to pace, except when pace comes from the detector chip. */
+    private final StepListener mPaceFeed = new StepListener() {
+        public void onStep() {
+            if (!mUsingStepCounter && mPaceNotifier != null) mPaceNotifier.onStep();
+        }
+        public void passValue() {
         }
     };
 
@@ -320,10 +434,44 @@ public class StepService extends Service {
         registerDetector();
     }
 
+    /** True when counting uses the step-counter chip, which needs no wake lock. */
+    public boolean isUsingStepCounter() {
+        return mUsingStepCounter;
+    }
+
     private void registerDetector() {
-        // Prefer the phone's step detector chip: more accurate, far less battery.
+        mUsingStepCounter = false;
+        boolean hardwareAllowed = mPedometerSettings.useHardwareSensor()
+                && hasActivityRecognitionPermission();
+
+        // Best: the step-counter chip. Prefer its wake-up version, which
+        // wakes the phone at most every few minutes to deliver a batch.
+        Sensor counter = null;
+        if (hardwareAllowed) {
+            counter = mSensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER, true);
+            if (counter == null) {
+                counter = mSensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER);
+            }
+        }
+        if (counter != null) {
+            mSensor = counter;
+            mUsingHardwareSensor = true;
+            mUsingStepCounter = true;
+            mSensorManager.registerListener(mCounterListener, counter,
+                    SensorManager.SENSOR_DELAY_NORMAL, COUNTER_BATCH_US);
+            Sensor detector = mSensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR);
+            if (detector != null) {
+                mSensorManager.registerListener(mHardwarePaceListener, detector,
+                        SensorManager.SENSOR_DELAY_NORMAL, 0);
+            }
+            Log.i(TAG, "Counting with the step-counter chip (no wake lock)");
+            updateWakeLock();
+            return;
+        }
+
+        // Next: the step detector chip (needs the CPU awake to catch each step).
         Sensor stepSensor = null;
-        if (mPedometerSettings.useHardwareSensor() && hasActivityRecognitionPermission()) {
+        if (hardwareAllowed) {
             stepSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR);
         }
         if (stepSensor != null) {
@@ -332,6 +480,7 @@ public class StepService extends Service {
             mSensorManager.registerListener(mHardwareStepListener, stepSensor,
                     SensorManager.SENSOR_DELAY_NORMAL, 0);
             Log.i(TAG, "Counting with the built-in step detector");
+            updateWakeLock();
             return;
         }
 
@@ -345,11 +494,14 @@ public class StepService extends Service {
         mSensorManager.registerListener(mStepDetector,
             mSensor,
             SensorManager.SENSOR_DELAY_FASTEST);
+        updateWakeLock();
     }
 
     private void unregisterDetector() {
         mSensorManager.unregisterListener(mStepDetector);
         mSensorManager.unregisterListener(mHardwareStepListener);
+        mSensorManager.unregisterListener(mCounterListener);
+        mSensorManager.unregisterListener(mHardwarePaceListener);
     }
 
     @Override
@@ -442,10 +594,14 @@ public class StepService extends Service {
     private StepDisplayer.Listener mStepListener = new StepDisplayer.Listener() {
         public void stepsChanged(int value) {
             mSteps = value;
-            if (mSteps % SAVE_EVERY_N_STEPS == 0) {
+            // Steps can arrive in batches, so compare with the last save
+            // rather than relying on exact multiples.
+            if (mSteps < mLastSavedSteps || mSteps - mLastSavedSteps >= SAVE_EVERY_N_STEPS) {
+                mLastSavedSteps = mSteps;
                 saveState();
             }
-            if (mSteps % NOTIFY_EVERY_N_STEPS == 0) {
+            if (mSteps < mLastNotifiedSteps || mSteps - mLastNotifiedSteps >= NOTIFY_EVERY_N_STEPS) {
+                mLastNotifiedSteps = mSteps;
                 updateNotification();
             }
             checkStepGoal();
@@ -596,16 +752,43 @@ public class StepService extends Service {
         public void onReceive(Context context, Intent intent) {
             // Check action just to be on the safe side.
             if (intent.getAction().equals(Intent.ACTION_SCREEN_OFF)) {
-                // Unregisters the listener and registers it again.
+                // The step-counter chip keeps counting while asleep; nothing to do.
+                if (mUsingStepCounter && !mPedometerSettings.wakeAggressively()) {
+                    return;
+                }
+                // Older phones stop sensors when the screen goes off: re-register.
                 StepService.this.unregisterDetector();
                 StepService.this.registerDetector();
                 if (mPedometerSettings.wakeAggressively()) {
-                    wakeLock.release();
+                    releaseWakeLock();
                     acquireWakeLock();
                 }
             }
         }
     };
+
+    /**
+     * Holds a wake lock only when it's needed: for the accelerometer and
+     * step-detector methods (which need the CPU awake), or when the user
+     * chose "Screen on" / "Aggressive" in Settings.
+     */
+    private void updateWakeLock() {
+        boolean needed = !mUsingStepCounter
+                || mPedometerSettings.keepScreenOn()
+                || mPedometerSettings.wakeAggressively();
+        if (needed) {
+            if (wakeLock == null || !wakeLock.isHeld()) acquireWakeLock();
+        } else {
+            releaseWakeLock();
+        }
+    }
+
+    private void releaseWakeLock() {
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
+        }
+        wakeLock = null;
+    }
 
     private void acquireWakeLock() {
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);

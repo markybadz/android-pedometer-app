@@ -21,11 +21,18 @@ activity score, history, redesign). "Fixed" items are in v2.1.0.
 | 12 | The step ring had no spoken description | Screen-reader users heard only the number | Reads out e.g. "6,240 of 8,000 steps" |
 | 13 | No automated tests | Regressions go unnoticed | Unit tests for the activity-score maths and the step listener order; they run on every GitHub build |
 
+## Fixed in v2.2.0
+
+| # | Problem | Fix |
+|---|---------|-----|
+| A | The counter held a CPU wake lock all day | Counts with the phone's step-counter chip, which keeps counting in hardware while the phone sleeps; no wake lock. Pace still comes live from the step-detector chip while you walk. Steps the chip counted while the app was killed or the phone rebooted are caught up. The wake lock is only used for the old accelerometer method, or if you choose "Screen on" / "Aggressive" |
+| J | Settings and History used the old Android screens | Settings rebuilt with current Android components (switches, current values shown, Material 3 dark theme). History shows a 7-day summary and a card per day with progress toward the step goal |
+| — | No way to see the phone's steps in Google Health | New "Share steps with Google Health" setting writes the phone's steps and distance to Health Connect every 15 minutes |
+
 ## Still open
 
 | # | Gap | Impact | Suggested fix |
 |---|-----|--------|---------------|
-| A | The counter holds a CPU wake lock all day | Uses more battery than needed, even with the step sensor chip | Use `TYPE_STEP_COUNTER` (counted in hardware while the phone sleeps) for the daily total, and the wake lock only while the screen is on |
 | B | `targetSdk` is 34 | Fine for installing the APK yourself, but Google Play requires a newer target for new apps and updates | Raise to 35/36 and handle edge-to-edge layout (content behind the status and navigation bars) |
 | C | Only a debug-signed APK is built | Debug builds are larger and not suitable for the Play Store | Add a release build with a private key stored as a GitHub secret, with code shrinking (R8) |
 | D | Distance and speed are stored in whatever unit is set at the time | Switching between km and miles mid-day mixes the two in today's total | Store metres internally and convert only for display |
@@ -34,4 +41,4 @@ activity score, history, redesign). "Fixed" items are in v2.1.0.
 | G | Calorie estimate is a fixed factor × weight × distance | Rough; ignores pace, incline and heart rate | When watch calories are available, prefer them |
 | H | Watch data is only as fresh as the Zepp app's last sync | The watch card can lag by 15–30 minutes | Nothing to fix in this app; the card shows the last sync time |
 | I | The activity score is an estimate | Will not match Zepp's own PAI number; Zepp doesn't share PAI with other apps | Labelled as an estimate in the app; keep it that way |
-| J | Settings and History screens use the old Android preference screens | Look dated next to the new main screen | Restyle with the same cards and colours |
+| L | With "Watch app: Any app in Health Connect" and Google Health sharing both on, the watch card also counts this phone's own shared steps | Watch total can include phone steps | Choose Zepp or Zepp Life as the watch app (the default) |

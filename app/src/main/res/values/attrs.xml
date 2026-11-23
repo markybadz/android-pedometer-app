@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="NumberPreference">
+        <!-- Shown after the value in the summary, e.g. "steps" in "8,000 steps". -->
+        <attr name="valueSuffix" format="string" />
+    </declare-styleable>
+</resources>

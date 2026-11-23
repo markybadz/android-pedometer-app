@@ -1,181 +1,179 @@
 <?xml version="1.0" encoding="utf-8"?>
-
+<!-- Settings screen (androidx.preference). Current values are shown as summaries. -->
 <PreferenceScreen
-        xmlns:android="http://schemas.android.com/apk/res/android">
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <PreferenceCategory
-            android:title="@string/steps_settings_title">
-            
-        <CheckBoxPreference
-                android:key="hardware_sensor"
-                android:title="@string/hardware_sensor_setting"
-                android:summary="@string/hardware_sensor_setting_details"
-                android:defaultValue="true" />
+    <PreferenceCategory android:title="@string/settings_goals">
+        <name.bagi.levente.pedometer.preferences.NumberPreference
+            android:key="step_goal"
+            android:title="@string/step_goal_setting"
+            android:dialogTitle="@string/step_goal_setting"
+            android:defaultValue="8000"
+            app:valueSuffix="@string/suffix_steps" />
+        <name.bagi.levente.pedometer.preferences.NumberPreference
+            android:key="calorie_goal"
+            android:title="@string/calorie_goal_setting"
+            android:dialogTitle="@string/calorie_goal_setting"
+            android:defaultValue="300"
+            app:valueSuffix="@string/suffix_kcal" />
+    </PreferenceCategory>
 
+    <PreferenceCategory android:title="@string/settings_you">
         <ListPreference
-                android:key="sensitivity"
-                android:title="@string/sensitivity_setting"
-                android:summary="@string/sensitivity_setting_details"
-                android:entries="@array/sensitivity_preference"
-                android:entryValues="@array/sensitivity_preference_values"
-                android:dialogTitle="@string/sensitivity_setting_title"
-                android:defaultValue="10" />
-
-        <ListPreference
-                android:key="operation_level"
-                android:title="@string/operation_level_setting"
-                android:summary="@string/operation_level_setting_details"
-                android:entries="@array/operation_level_preference"
-                android:entryValues="@array/operation_level_preference_values"
-                android:dialogTitle="@string/operation_level_setting_title"
-                android:defaultValue="run_in_background" />
-
-        <ListPreference
-                android:key="units"
-                android:title="@string/units_setting"
-                android:summary="@string/units_setting_details"
-                android:entries="@array/units_preference"
-                android:entryValues="@array/units_preference_values"
-                android:dialogTitle="@string/units_setting_title"
-                android:defaultValue="metric" />
-
+            android:key="units"
+            android:title="@string/units_setting"
+            android:dialogTitle="@string/units_setting_title"
+            android:entries="@array/units_preference"
+            android:entryValues="@array/units_preference_values"
+            android:defaultValue="metric"
+            app:useSimpleSummaryProvider="true" />
         <name.bagi.levente.pedometer.preferences.StepLengthPreference
-                android:key="step_length"
-                android:title="@string/step_length_setting"
-                android:summary="@string/step_length_setting_details"
-                android:dialogTitle="@string/step_length_setting_title"
-                android:defaultValue="70" />
-            
+            android:key="step_length"
+            android:title="@string/step_length_setting"
+            android:dialogMessage="@string/step_length_setting_details"
+            android:defaultValue="70" />
         <name.bagi.levente.pedometer.preferences.BodyWeightPreference
-                android:key="body_weight"
-                android:title="@string/body_weight_setting"
-                android:summary="@string/body_weight_setting_details"
-                android:dialogTitle="@string/body_weight_setting_title"
-                android:defaultValue="60" />
-
-        <EditTextPreference
-                android:key="step_goal"
-                android:title="@string/step_goal_setting"
-                android:summary="@string/step_goal_setting_details"
-                android:inputType="number"
-                android:defaultValue="8000" />
-
-        <EditTextPreference
-                android:key="calorie_goal"
-                android:title="@string/calorie_goal_setting"
-                android:summary="@string/calorie_goal_setting_details"
-                android:inputType="number"
-                android:defaultValue="300" />
-            
+            android:key="body_weight"
+            android:title="@string/body_weight_setting"
+            android:dialogMessage="@string/body_weight_setting_details"
+            android:defaultValue="60" />
         <ListPreference
-                android:key="exercise_type"
-                android:title="@string/exercise_type_setting"
-                android:summary="@string/exercise_type_setting_details"
-                android:entries="@array/exercise_type_preference"
-                android:entryValues="@array/exercise_type_preference_values"
-                android:dialogTitle="@string/exercise_type_setting_title"
-                android:defaultValue="walking" />
-                
-        <ListPreference
-                android:key="maintain"
-                android:title="@string/maintain_setting"
-                android:summary="@string/maintain_setting_details"
-                android:entries="@array/maintain_preference"
-                android:entryValues="@array/maintain_preference_values"
-                android:dialogTitle="@string/maintain_setting_title"
-                android:defaultValue="none" />
-
-    </PreferenceCategory>
-                
-    <PreferenceCategory
-            android:title="@string/watch_settings_title">
-        <CheckBoxPreference
-                android:key="watch_enabled"
-                android:title="@string/watch_enabled_setting"
-                android:summary="@string/watch_enabled_setting_details"
-                android:defaultValue="false" />
-        <ListPreference
-                android:key="watch_source"
-                android:title="@string/watch_source_setting"
-                android:summary="@string/watch_source_setting_details"
-                android:entries="@array/watch_source_preference"
-                android:entryValues="@array/watch_source_preference_values"
-                android:dependency="watch_enabled"
-                android:defaultValue="com.huami.watch.hmwatchmanager" />
-        <EditTextPreference
-                android:key="age"
-                android:title="@string/age_setting"
-                android:summary="@string/age_setting_details"
-                android:inputType="number"
-                android:dependency="watch_enabled"
-                android:defaultValue="35" />
-        <EditTextPreference
-                android:key="resting_hr"
-                android:title="@string/resting_hr_setting"
-                android:summary="@string/resting_hr_setting_details"
-                android:inputType="number"
-                android:dependency="watch_enabled"
-                android:defaultValue="65" />
+            android:key="exercise_type"
+            android:title="@string/exercise_type_setting"
+            android:dialogTitle="@string/exercise_type_setting_title"
+            android:entries="@array/exercise_type_preference"
+            android:entryValues="@array/exercise_type_preference_values"
+            android:defaultValue="walking"
+            app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
-    <PreferenceCategory
-            android:title="@string/voice_settings_title">
-        <CheckBoxPreference
-                android:key="speak"
-                android:title="@string/voice_setting"
-                android:summary="@string/voice_setting_details"
-                android:defaultValue="false" />
+    <PreferenceCategory android:title="@string/settings_counting">
+        <SwitchPreferenceCompat
+            android:key="hardware_sensor"
+            android:title="@string/hardware_sensor_setting"
+            android:summary="@string/hardware_sensor_setting_details"
+            android:defaultValue="true"
+            app:disableDependentsState="true" />
         <ListPreference
-                android:key="speaking_interval"
-                android:title="@string/speaking_interval_setting"
-                android:summary="@string/speaking_interval_setting_details"
-                android:entries="@array/speaking_interval_preference"
-                android:entryValues="@array/speaking_interval_preference_values"
-                android:dependency="speak"
-                android:defaultValue="1" />
-
-        <PreferenceScreen
-            android:key="tell_what"
-            android:title="@string/tell_what"
-            android:dependency="speak">
-            
-            <PreferenceCategory
-                    android:title="@string/tell_what">
-            
-                <CheckBoxPreference
-                        android:key="tell_steps"
-                        android:title="@string/tell_steps_setting"
-                        android:summary="@string/tell_steps_setting_details" 
-                        android:defaultValue="false" />
-                <CheckBoxPreference
-                        android:key="tell_pace"
-                        android:title="@string/tell_pace_setting"
-                        android:summary="@string/tell_pace_setting_details" 
-                        android:defaultValue="false" />
-                <CheckBoxPreference
-                        android:key="tell_distance"
-                        android:title="@string/tell_distance_setting"
-                        android:summary="@string/tell_distance_setting_details" 
-                        android:defaultValue="false" />
-                <CheckBoxPreference
-                        android:key="tell_speed"
-                        android:title="@string/tell_speed_setting"
-                        android:summary="@string/tell_speed_setting_details" 
-                        android:defaultValue="false" />
-                <CheckBoxPreference
-                        android:key="tell_calories"
-                        android:title="@string/tell_calories_setting"
-                        android:summary="@string/tell_calories_setting_details" 
-                        android:defaultValue="false" />
-                <CheckBoxPreference
-                        android:key="tell_fasterslower"
-                        android:title="@string/tell_fasterslower_setting"
-                        android:summary="@string/tell_fasterslower_setting_details" 
-                        android:defaultValue="false" />
-            </PreferenceCategory>
-        </PreferenceScreen>
+            android:key="sensitivity"
+            android:title="@string/sensitivity_setting"
+            android:dialogTitle="@string/sensitivity_setting_title"
+            android:entries="@array/sensitivity_preference"
+            android:entryValues="@array/sensitivity_preference_values"
+            android:defaultValue="10"
+            android:dependency="hardware_sensor"
+            app:useSimpleSummaryProvider="true" />
+        <ListPreference
+            android:key="operation_level"
+            android:title="@string/operation_level_setting"
+            android:dialogTitle="@string/operation_level_setting_title"
+            android:entries="@array/operation_level_preference"
+            android:entryValues="@array/operation_level_preference_values"
+            android:defaultValue="run_in_background"
+            app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
+    <PreferenceCategory android:title="@string/watch_settings_title">
+        <SwitchPreferenceCompat
+            android:key="watch_enabled"
+            android:title="@string/watch_enabled_setting"
+            android:summary="@string/watch_enabled_setting_details"
+            android:defaultValue="false" />
+        <ListPreference
+            android:key="watch_source"
+            android:title="@string/watch_source_setting"
+            android:dialogTitle="@string/watch_source_setting"
+            android:entries="@array/watch_source_preference"
+            android:entryValues="@array/watch_source_preference_values"
+            android:defaultValue="com.huami.watch.hmwatchmanager"
+            android:dependency="watch_enabled"
+            app:useSimpleSummaryProvider="true" />
+        <name.bagi.levente.pedometer.preferences.NumberPreference
+            android:key="age"
+            android:title="@string/age_setting"
+            android:dialogTitle="@string/age_setting"
+            android:dialogMessage="@string/age_setting_details"
+            android:defaultValue="35"
+            android:dependency="watch_enabled"
+            app:valueSuffix="@string/suffix_years" />
+        <name.bagi.levente.pedometer.preferences.NumberPreference
+            android:key="resting_hr"
+            android:title="@string/resting_hr_setting"
+            android:dialogTitle="@string/resting_hr_setting"
+            android:dialogMessage="@string/resting_hr_setting_details"
+            android:defaultValue="65"
+            android:dependency="watch_enabled"
+            app:valueSuffix="@string/suffix_bpm" />
+    </PreferenceCategory>
 
-    
+    <PreferenceCategory android:title="@string/settings_google_health">
+        <SwitchPreferenceCompat
+            android:key="share_health_connect"
+            android:title="@string/share_setting"
+            android:summary="@string/share_setting_details"
+            android:defaultValue="false" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_coaching">
+        <ListPreference
+            android:key="maintain"
+            android:title="@string/maintain_setting"
+            android:dialogTitle="@string/maintain_setting_title"
+            android:entries="@array/maintain_preference"
+            android:entryValues="@array/maintain_preference_values"
+            android:defaultValue="none"
+            app:useSimpleSummaryProvider="true" />
+        <SwitchPreferenceCompat
+            android:key="speak"
+            android:title="@string/voice_setting"
+            android:summary="@string/voice_setting_details"
+            android:defaultValue="false" />
+        <ListPreference
+            android:key="speaking_interval"
+            android:title="@string/speaking_interval_setting"
+            android:entries="@array/speaking_interval_preference"
+            android:entryValues="@array/speaking_interval_preference_values"
+            android:defaultValue="1"
+            android:dependency="speak"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/tell_what">
+        <SwitchPreferenceCompat
+            android:key="tell_steps"
+            android:title="@string/tell_steps_setting"
+            android:defaultValue="false"
+            android:dependency="speak" />
+        <SwitchPreferenceCompat
+            android:key="tell_pace"
+            android:title="@string/tell_pace_setting"
+            android:summary="@string/tell_pace_setting_details"
+            android:defaultValue="false"
+            android:dependency="speak" />
+        <SwitchPreferenceCompat
+            android:key="tell_distance"
+            android:title="@string/tell_distance_setting"
+            android:summary="@string/tell_distance_setting_details"
+            android:defaultValue="false"
+            android:dependency="speak" />
+        <SwitchPreferenceCompat
+            android:key="tell_speed"
+            android:title="@string/tell_speed_setting"
+            android:summary="@string/tell_speed_setting_details"
+            android:defaultValue="false"
+            android:dependency="speak" />
+        <SwitchPreferenceCompat
+            android:key="tell_calories"
+            android:title="@string/tell_calories_setting"
+            android:defaultValue="false"
+            android:dependency="speak" />
+        <SwitchPreferenceCompat
+            android:key="tell_fasterslower"
+            android:title="@string/tell_fasterslower_setting"
+            android:summary="@string/tell_fasterslower_setting_details"
+            android:defaultValue="false"
+            android:dependency="speak" />
+    </PreferenceCategory>
+
 </PreferenceScreen>

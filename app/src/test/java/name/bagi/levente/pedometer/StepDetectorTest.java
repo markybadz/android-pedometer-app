@@ -29,6 +29,19 @@ public class StepDetectorTest {
     }
 
     @Test
+    public void batchedStepsCountEachStep() {
+        StepDetector detector = new StepDetector();
+        CountingListener listener = new CountingListener();
+        detector.addStepListener(listener);
+
+        // A batch from the step-counter chip after the phone wakes.
+        detector.onExternalSteps(137);
+        detector.onExternalSteps(0);
+
+        assertEquals(137, listener.steps);
+    }
+
+    @Test
     public void listenersAreCalledInOrderAdded() {
         final StringBuilder order = new StringBuilder();
         StepDetector detector = new StepDetector();

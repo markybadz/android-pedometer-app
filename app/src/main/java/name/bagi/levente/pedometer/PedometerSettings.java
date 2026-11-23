@@ -154,6 +154,17 @@ public class PedometerSettings {
         return mSettings.getString("watch_source", WatchSteps.SOURCE_ZEPP);
     }
 
+    /** Write the phone's steps to Health Connect, for Google Health and other apps. */
+    public boolean isSharingEnabled() {
+        return mSettings.getBoolean("share_health_connect", false);
+    }
+
+    /** Length of one step in metres, from the step length setting. */
+    public double getStepLengthMeters() {
+        float length = getStepLength();
+        return isMetric() ? length / 100.0 : length * 0.0254;
+    }
+
     /** Daily step goal, for the ring on the main screen. */
     public int getStepGoal() {
         return parseInt(mSettings.getString("step_goal", "8000"), 8000);

@@ -88,6 +88,12 @@ public class PaceNotifier implements StepListener, SpeakingTimer.Listener {
         // Calculate pace based on last x steps
         if (mLastStepTime > 0) {
             long delta = thisStepTime - mLastStepTime;
+            // Steps less than 0.2 s apart are a batch delivered at once
+            // (e.g. after the phone wakes), not real cadence: skip them.
+            if (delta < 200) {
+                mLastStepTime = thisStepTime;
+                return;
+            }
             
             mLastStepDeltas[mLastStepDeltasIndex] = delta;
             mLastStepDeltasIndex = (mLastStepDeltasIndex + 1) % mLastStepDeltas.length;

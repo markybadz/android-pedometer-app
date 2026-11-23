@@ -126,6 +126,7 @@ public class Pedometer extends Activity {
         if (requestCode == REQ_HEALTH_CONNECT) {
             mLastScoreRead = 0;
             refreshWatch();
+            refreshSharing();
         }
     }
 
@@ -140,6 +141,8 @@ public class Pedometer extends Activity {
     private TextView mWatchView;
     private TextView mPaiView;
     private View mWatchCard;
+    private View mHealthCard;
+    private TextView mHealthView;
     private View mPaiCard;
     private ProgressBar mStepRing;
     private TextView mStepGoalView;
@@ -149,9 +152,62 @@ public class Pedometer extends Activity {
     private final Runnable mWatchRefresh = new Runnable() {
         public void run() {
             refreshWatch();
+            refreshSharing();
             mWatchHandler.postDelayed(this, WATCH_REFRESH_MS);
         }
     };
+
+    /** Shows whether steps are being shared with Google Health, or what's needed to start. */
+    private void refreshSharing() {
+        if (mHealthCard == null || mPedometerSettings == null) return;
+        if (!mPedometerSettings.isSharingEnabled()) {
+            mHealthCard.setVisibility(View.GONE);
+            return;
+        }
+        mHealthCard.setVisibility(View.VISIBLE);
+        mHealthCard.setOnClickListener(null);
+        if (WatchSteps.needsProviderUpdate(this)) {
+            mHealthView.setText(R.string.watch_install_health_connect);
+            mHealthCard.setOnClickListener(v -> {
+                try {
+                    startActivity(WatchSteps.installIntent());
+                } catch (RuntimeException ignored) {
+                }
+            });
+            return;
+        }
+        if (!WatchSteps.isAvailable(this)) {
+            mHealthView.setText(R.string.watch_no_health_connect);
+            return;
+        }
+        WatchSteps.grantedPermissions(this, new WatchSteps.Callback<Set<String>>() {
+            public void onResult(Set<String> granted) {
+                if (isFinishing()) return;
+                if (!granted.contains(WatchSteps.WRITE_STEPS_PERMISSION)) {
+                    mHealthView.setText(R.string.share_allow);
+                    mHealthCard.setOnClickListener(v -> {
+                        try {
+                            startActivityForResult(WatchSteps.permissionIntent(
+                                    Pedometer.this, WatchSteps.SHARE_PERMISSIONS), REQ_HEALTH_CONNECT);
+                        } catch (RuntimeException e) {
+                            mHealthView.setText(getString(R.string.watch_error, e.getMessage()));
+                        }
+                    });
+                    return;
+                }
+                long last = getSharedPreferences("state", 0).getLong(StepService.KEY_LAST_SHARED, 0);
+                String status = last > 0
+                        ? getString(R.string.share_last, DateFormat.getTimeInstance(DateFormat.SHORT)
+                                .format(new Date(last)))
+                        : getString(R.string.share_none_yet);
+                mHealthView.setText(getString(R.string.share_active) + "\n" + status);
+            }
+            public void onError(String message) {
+                if (isFinishing()) return;
+                mHealthView.setText(getString(R.string.watch_error, message));
+            }
+        });
+    }
 
     /** Shows the watch line, or a prompt explaining what's needed to show it. */
     private void refreshWatch() {
@@ -401,6 +457,8 @@ public class Pedometer extends Activity {
         mWatchView = (TextView) findViewById(R.id.watch_value);
         mPaiView = (TextView) findViewById(R.id.pai_value);
         mWatchCard = findViewById(R.id.watch_card);
+        mHealthCard = findViewById(R.id.health_card);
+        mHealthView = (TextView) findViewById(R.id.health_value);
         mPaiCard = findViewById(R.id.pai_card);
         mStepRing = (ProgressBar) findViewById(R.id.step_ring);
         mStepGoalView = (TextView) findViewById(R.id.step_goal_text);

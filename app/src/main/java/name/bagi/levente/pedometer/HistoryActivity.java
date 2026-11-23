@@ -22,10 +22,12 @@ import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.util.TypedValue;
 import android.view.Gravity;
+import android.view.View;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
-import android.widget.TableLayout;
-import android.widget.TableRow;
 import android.widget.TextView;
 
 import java.time.LocalDate;
@@ -36,15 +38,15 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
- * Daily step totals for the last 30 days: phone count, and the Amazfit
- * watch count from Health Connect when that is turned on.
+ * The last 30 days: a summary of the past week, then one card per day with
+ * steps against the step goal, calories, and the Amazfit watch's steps.
  */
 public class HistoryActivity extends Activity {
     private static final int DAYS = 30;
     private static final DateTimeFormatter DAY_FORMAT =
-            DateTimeFormatter.ofPattern("EEE d MMM", Locale.getDefault());
+            DateTimeFormatter.ofPattern("EEEE, d MMM", Locale.getDefault());
 
-    private TableLayout mTable;
+    private LinearLayout mList;
     private PedometerSettings mSettings;
     private final Map<LocalDate, Long> mWatchSteps = new HashMap<LocalDate, Long>();
     private boolean mShowWatch;
@@ -58,12 +60,13 @@ public class HistoryActivity extends Activity {
         mSettings = new PedometerSettings(prefs);
         mShowWatch = mSettings.isWatchEnabled() && WatchSteps.isAvailable(this);
 
-        int pad = (int) (12 * getResources().getDisplayMetrics().density);
-        mTable = new TableLayout(this);
-        mTable.setPadding(pad, pad, pad, pad);
-        mTable.setStretchAllColumns(true);
+        mList = new LinearLayout(this);
+        mList.setOrientation(LinearLayout.VERTICAL);
+        int pad = dp(16);
+        mList.setPadding(pad, pad, pad, pad);
         ScrollView scroll = new ScrollView(this);
-        scroll.addView(mTable);
+        scroll.setBackgroundColor(getColor(R.color.background));
+        scroll.addView(mList);
         setContentView(scroll);
 
         render();
@@ -81,72 +84,156 @@ public class HistoryActivity extends Activity {
                         }
                         @Override
                         public void onError(String message) {
-                            // Leave the watch column showing "–".
+                            // Days keep showing phone data only.
                         }
                     });
         }
     }
 
     private void render() {
-        mTable.removeAllViews();
-        if (mShowWatch) {
-            addRow(true, getString(R.string.history_day), getString(R.string.history_phone),
-                    getString(R.string.history_kcal), getString(R.string.history_watch));
-        } else {
-            addRow(true, getString(R.string.history_day), getString(R.string.history_phone),
-                    getString(R.string.history_kcal));
-        }
-
+        mList.removeAllViews();
         LocalDate today = LocalDate.now();
         SharedPreferences state = getSharedPreferences("state", 0);
         // Only trust the live totals if they belong to today (the service
         // archives them at midnight, but may not have run since then).
         boolean stateIsToday = today.toString().equals(state.getString("day", ""));
-        int goal = mSettings.getCalorieGoal();
+        int stepGoal = mSettings.getStepGoal();
+        int kcalGoal = mSettings.getCalorieGoal();
+
+        int[] steps = new int[DAYS];
+        float[] kcal = new float[DAYS];
         for (int i = 0; i < DAYS; i++) {
             LocalDate day = today.minusDays(i);
-            int phone;
-            float kcal;
             if (i == 0) {
-                phone = stateIsToday ? state.getInt("steps", 0) : 0;
-                kcal = stateIsToday ? state.getFloat("calories", 0) : 0;
+                steps[i] = stateIsToday ? state.getInt("steps", 0) : 0;
+                kcal[i] = stateIsToday ? state.getFloat("calories", 0) : 0;
             } else {
-                phone = History.stepsFor(this, day);
-                kcal = History.caloriesFor(this, day);
+                steps[i] = History.stepsFor(this, day);
+                kcal[i] = History.caloriesFor(this, day);
             }
-            String label = (i == 0) ? getString(R.string.today) : day.format(DAY_FORMAT);
-            String phoneText = phone >= 0 ? String.format(Locale.getDefault(), "%,d", phone) : "–";
-            String kcalText = "–";
-            if (kcal >= 0) {
-                kcalText = String.format(Locale.getDefault(), "%,d", Math.round(kcal));
-                if (goal > 0 && kcal >= goal) kcalText += " ✓";
-            }
-            if (mShowWatch) {
-                Long watch = mWatchSteps.get(day);
-                String watchText = watch != null ? String.format(Locale.getDefault(), "%,d", watch) : "–";
-                addRow(false, label, phoneText, kcalText, watchText);
-            } else {
-                addRow(false, label, phoneText, kcalText);
-            }
+        }
+
+        // Summary of the last 7 days (today included).
+        long weekSteps = 0;
+        float weekKcal = 0;
+        int daysWithData = 0;
+        int goalDays = 0;
+        for (int i = 0; i < 7; i++) {
+            if (steps[i] < 0) continue;
+            daysWithData++;
+            weekSteps += steps[i];
+            if (kcal[i] > 0) weekKcal += kcal[i];
+            if (stepGoal > 0 && steps[i] >= stepGoal) goalDays++;
+        }
+        long average = daysWithData > 0 ? weekSteps / daysWithData : 0;
+        addSummaryCard(average, Math.round(weekKcal), goalDays);
+
+        for (int i = 0; i < DAYS; i++) {
+            LocalDate day = today.minusDays(i);
+            Long watch = mShowWatch ? mWatchSteps.get(day) : null;
+            if (steps[i] < 0 && watch == null) continue; // nothing recorded that day
+            String label = (i == 0) ? getString(R.string.today)
+                    : (i == 1) ? getString(R.string.yesterday) : day.format(DAY_FORMAT);
+            addDayCard(label, steps[i], kcal[i], watch, stepGoal, kcalGoal);
         }
     }
 
-    private void addRow(boolean header, String... cells) {
-        TableRow row = new TableRow(this);
-        for (int i = 0; i < cells.length; i++) {
-            row.addView(cell(cells[i], header, i == 0 ? Gravity.START : Gravity.END));
-        }
-        mTable.addView(row);
+    private void addSummaryCard(long averageSteps, int weekKcal, int goalDays) {
+        LinearLayout card = card();
+        card.addView(text(getString(R.string.history_last_7_days), 12, R.color.text_secondary, true));
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, dp(8), 0, 0);
+        row.addView(stat(fmt(averageSteps), getString(R.string.history_avg_steps)));
+        row.addView(stat(fmt(weekKcal), getString(R.string.history_week_kcal)));
+        row.addView(stat(goalDays + " / 7", getString(R.string.history_goal_days)));
+        card.addView(row);
+        mList.addView(card);
     }
 
-    private TextView cell(String text, boolean header, int gravity) {
+    private void addDayCard(String label, int steps, float kcal, Long watch, int stepGoal, int kcalGoal) {
+        LinearLayout card = card();
+
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        TextView name = text(label, 15, R.color.text_primary, false);
+        name.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        top.addView(name);
+        boolean goalMet = stepGoal > 0 && steps >= stepGoal;
+        String stepsText = steps >= 0 ? fmt(steps) + " " + getString(R.string.suffix_steps) : "–";
+        TextView count = text(stepsText + (goalMet ? "  ✓" : ""), 15,
+                goalMet ? R.color.accent_steps : R.color.text_primary, true);
+        top.addView(count);
+        card.addView(top);
+
+        ProgressBar bar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        bar.setProgressDrawable(getDrawable(R.drawable.bar_steps));
+        bar.setMax(100);
+        bar.setProgress(stepGoal > 0 && steps > 0 ? Math.min(100, (int) (100L * steps / stepGoal)) : 0);
+        LinearLayout.LayoutParams barParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(8));
+        barParams.topMargin = dp(10);
+        bar.setLayoutParams(barParams);
+        card.addView(bar);
+
+        StringBuilder details = new StringBuilder();
+        if (kcal >= 0) {
+            details.append(fmt(Math.round(kcal))).append(" kcal");
+            if (kcalGoal > 0 && kcal >= kcalGoal) details.append(" ✓");
+        }
+        if (watch != null) {
+            if (details.length() > 0) details.append("  ·  ");
+            details.append(getString(R.string.history_watch_steps, fmt(watch)));
+        }
+        if (details.length() > 0) {
+            TextView detail = text(details.toString(), 13, R.color.text_secondary, false);
+            detail.setPadding(0, dp(8), 0, 0);
+            card.addView(detail);
+        }
+        mList.addView(card);
+    }
+
+    //-------------------------------------------------------------------
+    // Small view helpers
+
+    private LinearLayout card() {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackgroundResource(R.drawable.card);
+        int pad = dp(16);
+        card.setPadding(pad, pad, pad, pad);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.bottomMargin = dp(12);
+        card.setLayoutParams(params);
+        return card;
+    }
+
+    private View stat(String value, String label) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        box.addView(text(value, 22, R.color.text_primary, true));
+        box.addView(text(label, 12, R.color.text_secondary, false));
+        return box;
+    }
+
+    private TextView text(String value, int sp, int colorRes, boolean bold) {
         TextView view = new TextView(this);
-        int pad = (int) (6 * getResources().getDisplayMetrics().density);
-        view.setPadding(pad, pad, pad, pad);
-        view.setTextSize(header ? 14 : 16);
-        view.setGravity(gravity);
-        if (header) view.setTypeface(Typeface.DEFAULT_BOLD);
-        view.setText(text);
+        view.setText(value);
+        view.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
+        view.setTextColor(getColor(colorRes));
+        view.setGravity(Gravity.START);
+        if (bold) view.setTypeface(Typeface.DEFAULT_BOLD);
         return view;
+    }
+
+    private String fmt(long number) {
+        return String.format(Locale.getDefault(), "%,d", number);
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 }

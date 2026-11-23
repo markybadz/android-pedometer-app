@@ -170,6 +170,23 @@
                 android:text="" />
         </LinearLayout>
 
+        <!-- Google Health sharing (hidden unless turned on in Settings) -->
+        <LinearLayout android:id="@+id/health_card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/card_gap"
+            android:orientation="vertical"
+            android:background="@drawable/card"
+            android:padding="@dimen/card_padding"
+            android:visibility="gone">
+            <TextView
+                style="@style/CardTitle"
+                android:text="@string/card_google_health" />
+            <TextView android:id="@+id/health_value"
+                style="@style/Body"
+                android:text="" />
+        </LinearLayout>
+
         <!-- Activity score (PAI-style estimate) -->
         <LinearLayout android:id="@+id/pai_card"
             android:layout_width="match_parent"

@@ -35,6 +35,12 @@ h2. New in v2.0
 * Uses the phone's built-in step sensor when it has one (more accurate, far less battery), with the old accelerometer method as a fallback.
 * Resets at midnight, keeps counting after a reboot, metric units by default.
 
+h2. New in v2.2
+
+* *Google Health:* turn on Settings > Google Health > Share steps, and the phone's steps and distance go to Health Connect every 15 minutes, where Google Health (and other apps you allow) can show them. In Google Health, allow it to read steps from Health Connect.
+* *Much better battery life:* counts with the phone's step-counter chip, which keeps counting while the phone sleeps, so the app no longer keeps the phone awake.
+* *New Settings and History screens:* switches, current values at a glance, a weekly summary and daily progress bars.
+
 h2. New in v2.1
 
 * Fixes from an app audit: Quit no longer wipes today's steps, Pause stays paused, updates install over each other, and several crash and memory fixes. See "docs/AUDIT.md":docs/AUDIT.md for the full list and the gaps still open.

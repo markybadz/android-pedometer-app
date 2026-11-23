@@ -73,6 +73,13 @@ public class StepDetector implements SensorEventListener
         }
     }
 
+    /** Reports several steps at once (a batch from the step-counter chip). */
+    public void onExternalSteps(int count) {
+        for (int i = 0; i < count; i++) {
+            onExternalStep();
+        }
+    }
+
     //public void onSensorChanged(int sensor, float[] values) {
     public void onSensorChanged(SensorEvent event) {
         Sensor sensor = event.sensor; 

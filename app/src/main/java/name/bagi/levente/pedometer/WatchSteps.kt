@@ -30,7 +30,11 @@ import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.HeartRateRecord
 import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.records.StepsRecord
+import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.metadata.DataOrigin
+import androidx.health.connect.client.records.metadata.Device
+import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.units.Length
 import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -77,6 +81,15 @@ object WatchSteps {
     private val DISTANCE_PERMISSION = HealthPermission.getReadPermission(DistanceRecord::class)
     private val CALORIES_PERMISSION = HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class)
     private val RESTING_PERMISSION = HealthPermission.getReadPermission(RestingHeartRateRecord::class)
+
+    /** Writing the phone's steps, so Google Health and other apps can show them. */
+    @JvmField
+    val WRITE_STEPS_PERMISSION: String = HealthPermission.getWritePermission(StepsRecord::class)
+    private val WRITE_DISTANCE_PERMISSION = HealthPermission.getWritePermission(DistanceRecord::class)
+
+    /** What "share with Google Health" asks for. */
+    @JvmField
+    val SHARE_PERMISSIONS: Set<String> = setOf(WRITE_STEPS_PERMISSION, WRITE_DISTANCE_PERMISSION)
 
     /** Everything the app asks for. Users may grant only some; each read copes with that. */
     @JvmField
@@ -136,9 +149,80 @@ object WatchSteps {
 
     /** Intent for the Health Connect permission screen. Start it with startActivityForResult. */
     @JvmStatic
-    fun permissionIntent(context: Context): Intent =
+    fun permissionIntent(context: Context): Intent = permissionIntent(context, PERMISSIONS)
+
+    /** Same, for a chosen set of permissions (e.g. [SHARE_PERMISSIONS]). */
+    @JvmStatic
+    fun permissionIntent(context: Context, permissions: Set<String>): Intent =
         PermissionController.createRequestPermissionResultContract()
-            .createIntent(context, PERMISSIONS)
+            .createIntent(context, permissions)
+
+    /**
+     * Writes steps the phone counted between [startMillis] and [endMillis]
+     * (and their distance, if allowed) to Health Connect, where Google Health
+     * and other apps can read them. Each interval has a stable ID, so writing
+     * it twice replaces rather than duplicates it. Reports false if writing
+     * steps isn't allowed.
+     */
+    @JvmStatic
+    fun writeSteps(
+        context: Context,
+        startMillis: Long,
+        endMillis: Long,
+        steps: Long,
+        meters: Double,
+        callback: Callback<Boolean>,
+    ) {
+        val app = context.applicationContext
+        scope.launch {
+            try {
+                val client = HealthConnectClient.getOrCreate(app)
+                val granted = client.permissionController.getGrantedPermissions()
+                if (WRITE_STEPS_PERMISSION !in granted) {
+                    callback.onResult(false)
+                    return@launch
+                }
+                val zone = ZoneId.systemDefault()
+                val start = Instant.ofEpochMilli(startMillis)
+                val end = Instant.ofEpochMilli(maxOf(endMillis, startMillis + 1000))
+                val startOffset = zone.rules.getOffset(start)
+                val endOffset = zone.rules.getOffset(end)
+                val device = Device(type = Device.TYPE_PHONE)
+
+                val records = mutableListOf<Record>(
+                    StepsRecord(
+                        startTime = start, startZoneOffset = startOffset,
+                        endTime = end, endZoneOffset = endOffset,
+                        count = steps,
+                        metadata = Metadata.autoRecorded(
+                            clientRecordId = "pedometer-steps-$startMillis",
+                            clientRecordVersion = 1L,
+                            device = device,
+                        ),
+                    )
+                )
+                if (meters > 0 && WRITE_DISTANCE_PERMISSION in granted) {
+                    records.add(
+                        DistanceRecord(
+                            startTime = start, startZoneOffset = startOffset,
+                            endTime = end, endZoneOffset = endOffset,
+                            distance = Length.meters(meters),
+                            metadata = Metadata.autoRecorded(
+                                clientRecordId = "pedometer-distance-$startMillis",
+                                clientRecordVersion = 1L,
+                                device = device,
+                            ),
+                        )
+                    )
+                }
+                client.insertRecords(records)
+                callback.onResult(true)
+            } catch (e: Exception) {
+                Log.w(TAG, "Writing steps to Health Connect failed", e)
+                callback.onError(e.message ?: e.javaClass.simpleName)
+            }
+        }
+    }
 
     /** The Health Connect read permissions the user has granted to this app. */
     @JvmStatic

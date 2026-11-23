@@ -11,8 +11,8 @@ android {
         // Health Connect requires Android 8.0 (API 26) or newer.
         minSdk 26
         targetSdk 34
-        versionCode 8
-        versionName '2.1.0'
+        versionCode 9
+        versionName '2.2.0'
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
@@ -59,6 +59,11 @@ dependencies {
     implementation 'androidx.health.connect:connect-client:1.1.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
     implementation 'androidx.activity:activity:1.9.3'
+
+    // Modern Settings screen (Material 3 switches, value summaries)
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.preference:preference:1.2.1'
+    implementation 'com.google.android.material:material:1.12.0'
 
     testImplementation 'junit:junit:4.13.2'
 }

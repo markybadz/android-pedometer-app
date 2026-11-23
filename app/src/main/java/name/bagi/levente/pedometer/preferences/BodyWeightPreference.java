@@ -15,34 +15,25 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 package name.bagi.levente.pedometer.preferences;
 
-import name.bagi.levente.pedometer.R;
 import android.content.Context;
-import android.preference.EditTextPreference;
 import android.util.AttributeSet;
 
-/**
- * An {@link EditTextPreference} that only allows float values.
- * @author Levente Bagi
- */
-public class BodyWeightPreference extends EditMeasurementPreference {
+import name.bagi.levente.pedometer.R;
 
-	public BodyWeightPreference(Context context) {
-		super(context);
-	}
-	public BodyWeightPreference(Context context, AttributeSet attr) {
-		super(context, attr);
-	}
-	public BodyWeightPreference(Context context, AttributeSet attr, int defStyle) {
-		super(context, attr, defStyle);
-	}
+public class BodyWeightPreference extends MeasurementPreference {
+    public BodyWeightPreference(Context context, AttributeSet attrs) {
+        super(context, attrs);
+    }
 
-	protected void initPreferenceDetails() {
-		mTitleResource = R.string.body_weight_setting_title;
-		mMetricUnitsResource = R.string.kilograms;
-		mImperialUnitsResource = R.string.pounds;
-	}
+    @Override
+    protected int unitResource() {
+        return isMetric() ? R.string.suffix_kg : R.string.suffix_lb;
+    }
+
+    @Override
+    protected int dialogTitleResource() {
+        return R.string.body_weight_setting_title;
+    }
 }
-

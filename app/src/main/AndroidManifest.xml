@@ -21,6 +21,9 @@
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
     <uses-permission android:name="android.permission.health.READ_HEART_RATE" />
     <uses-permission android:name="android.permission.health.READ_RESTING_HEART_RATE" />
+    <!-- Share the phone's steps with Health Connect (Google Health and other apps) -->
+    <uses-permission android:name="android.permission.health.WRITE_STEPS" />
+    <uses-permission android:name="android.permission.health.WRITE_DISTANCE" />
 
     <!-- Lets the app check whether Health Connect is installed (Android 13 and older) -->
     <queries>
@@ -43,6 +46,7 @@
         </activity>
         <activity android:name=".Settings"
                 android:label="@string/activity_settings"
+                android:theme="@style/SettingsTheme"
                 android:exported="false" />
 
         <activity android:name=".HistoryActivity"
