@@ -63,6 +63,11 @@ public class StepService extends Service {
 	private static final String TAG = "name.bagi.levente.pedometer.StepService";
     private static final String CHANNEL_ID = "step_service";
     private static final int NOTIFICATION_ID = 1;
+    private static final int GOAL_NOTIFICATION_ID = 2;
+    /** Update the notification's step count every this many steps. */
+    private static final int NOTIFY_EVERY_N_STEPS = 10;
+    /** State key: the day the step-goal notification was last shown. */
+    private static final String KEY_GOAL_DAY = "goal_notified_day";
     private static final int SAVE_EVERY_N_STEPS = 20;
     /** State key: true while the user wants counting on (used to restart after reboot). */
     private static final String KEY_COUNTING = "counting_enabled";
@@ -72,6 +77,11 @@ public class StepService extends Service {
     /** Whether counting should be running (it was started and not paused or quit). */
     public static boolean isCountingEnabled(Context context) {
         return context.getSharedPreferences("state", 0).getBoolean(KEY_COUNTING, false);
+    }
+
+    /** False until the user has started or paused counting at least once. */
+    public static boolean hasCountingChoice(Context context) {
+        return context.getSharedPreferences("state", 0).contains(KEY_COUNTING);
     }
 
     /** Called by the activity when the user pauses or quits, so counting stays off after a reboot. */
@@ -197,6 +207,7 @@ public class StepService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.i(TAG, "[SERVICE] onStartCommand");
+        showNotification();
         // Ask the system to restart counting if it kills the service.
         return START_STICKY;
     }
@@ -434,6 +445,10 @@ public class StepService extends Service {
             if (mSteps % SAVE_EVERY_N_STEPS == 0) {
                 saveState();
             }
+            if (mSteps % NOTIFY_EVERY_N_STEPS == 0) {
+                updateNotification();
+            }
+            checkStepGoal();
             passValue();
         }
         public void passValue() {
@@ -502,39 +517,76 @@ public class StepService extends Service {
     /**
      * Show a notification while this service is running.
      */
-    private void showNotification() {
-        CharSequence text = getText(R.string.app_name);
-
+    /** Builds the ongoing notification, with today's step count once there is one. */
+    private Notification buildNotification() {
         Intent pedometerIntent = new Intent();
         pedometerIntent.setComponent(new ComponentName(this, Pedometer.class));
         pedometerIntent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        int piFlags = Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0;
         PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
-                pedometerIntent, piFlags);
+                pedometerIntent, PendingIntent.FLAG_IMMUTABLE);
 
-        Notification.Builder builder;
-        if (Build.VERSION.SDK_INT >= 26) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
-                    getText(R.string.app_name), NotificationManager.IMPORTANCE_LOW);
-            mNM.createNotificationChannel(channel);
-            builder = new Notification.Builder(this, CHANNEL_ID);
-        } else {
-            builder = new Notification.Builder(this);
-        }
-        Notification notification = builder
+        CharSequence text = mSteps > 0
+                ? getString(R.string.notification_steps, String.format(java.util.Locale.getDefault(), "%,d", mSteps))
+                : getText(R.string.notification_subtitle);
+
+        return new Notification.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle(text)
-                .setContentText(getText(R.string.notification_subtitle))
+                .setContentTitle(getText(R.string.app_name))
+                .setContentText(text)
                 .setContentIntent(contentIntent)
                 .setOngoing(true)
+                .setOnlyAlertOnce(true)
+                .setShowWhen(false)
                 .build();
+    }
 
+    private void createChannel() {
+        NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
+                getText(R.string.app_name), NotificationManager.IMPORTANCE_LOW);
+        mNM.createNotificationChannel(channel);
+    }
+
+    /**
+     * Puts the service in the foreground. Called from onCreate and again from
+     * every onStartCommand, because each startForegroundService() call must be
+     * answered with startForeground(), even if the service was already running.
+     */
+    private void showNotification() {
+        createChannel();
+        Notification notification = buildNotification();
         if (Build.VERSION.SDK_INT >= 34) {
             startForeground(NOTIFICATION_ID, notification,
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH);
         } else {
             startForeground(NOTIFICATION_ID, notification);
         }
+    }
+
+    /** Refreshes the step count shown in the ongoing notification. */
+    private void updateNotification() {
+        if (mNM != null) {
+            mNM.notify(NOTIFICATION_ID, buildNotification());
+        }
+    }
+
+    /** One quiet notification per day when the step goal is reached. */
+    private void checkStepGoal() {
+        if (mPedometerSettings == null || mDay == null) return;
+        int goal = mPedometerSettings.getStepGoal();
+        if (goal <= 0 || mSteps < goal) return;
+        if (mDay.equals(mState.getString(KEY_GOAL_DAY, ""))) return;
+        mState.edit().putString(KEY_GOAL_DAY, mDay).apply();
+
+        Intent intent = new Intent(this, Pedometer.class);
+        PendingIntent pi = PendingIntent.getActivity(this, 1, intent, PendingIntent.FLAG_IMMUTABLE);
+        mNM.notify(GOAL_NOTIFICATION_ID, new Notification.Builder(this, CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_notification)
+                .setContentTitle(getText(R.string.goal_reached_title))
+                .setContentText(getString(R.string.goal_reached_text,
+                        String.format(java.util.Locale.getDefault(), "%,d", goal)))
+                .setContentIntent(pi)
+                .setAutoCancel(true)
+                .build());
     }
 
 

@@ -47,6 +47,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 
 
@@ -123,6 +124,7 @@ public class Pedometer extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQ_HEALTH_CONNECT) {
+            mLastScoreRead = 0;
             refreshWatch();
         }
     }
@@ -172,11 +174,11 @@ public class Pedometer extends Activity {
             mPaiCard.setVisibility(View.GONE);
             return;
         }
-        WatchSteps.hasPermissions(this, new WatchSteps.Callback<Boolean>() {
-            public void onResult(Boolean granted) {
+        WatchSteps.grantedPermissions(this, new WatchSteps.Callback<Set<String>>() {
+            public void onResult(Set<String> granted) {
                 if (isFinishing()) return;
-                if (granted) {
-                    readWatchData();
+                if (granted.contains(WatchSteps.STEPS_PERMISSION)) {
+                    readWatchData(granted.contains(WatchSteps.HEART_RATE_PERMISSION));
                 } else {
                     showWatchPrompt(getString(R.string.watch_grant_access),
                             WatchSteps.permissionIntent(Pedometer.this), true);
@@ -207,7 +209,11 @@ public class Pedometer extends Activity {
         });
     }
 
-    private void readWatchData() {
+    /** When the activity score was last read; it covers a week, so every 15 min is plenty. */
+    private long mLastScoreRead;
+    private static final long SCORE_REFRESH_MS = 15 * 60 * 1000;
+
+    private void readWatchData(boolean heartRateAllowed) {
         final String source = mPedometerSettings.getWatchSource();
         WatchSteps.readToday(this, source, new WatchSteps.Callback<WatchSteps.Today>() {
             public void onResult(WatchSteps.Today today) {
@@ -232,6 +238,28 @@ public class Pedometer extends Activity {
             }
         });
 
+        if (!heartRateAllowed) {
+            // Steps allowed but heart rate not: offer to allow it for the score.
+            mPaiCard.setVisibility(View.VISIBLE);
+            mPaiView.setText(R.string.pai_allow_heart_rate);
+            mPaiBar.setProgress(0);
+            mPaiCard.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                    try {
+                        startActivityForResult(WatchSteps.permissionIntent(Pedometer.this),
+                                REQ_HEALTH_CONNECT);
+                    } catch (RuntimeException e) {
+                        mPaiView.setText(getString(R.string.watch_error, e.getMessage()));
+                    }
+                }
+            });
+            return;
+        }
+        mPaiCard.setOnClickListener(null);
+        long now = System.currentTimeMillis();
+        if (now - mLastScoreRead < SCORE_REFRESH_MS) return;
+        mLastScoreRead = now;
+
         WatchSteps.readActivityScore(this, source, mPedometerSettings.getAge(),
                 mPedometerSettings.getRestingHeartRate(),
                 new WatchSteps.Callback<WatchSteps.ActivityScore>() {
@@ -249,6 +277,7 @@ public class Pedometer extends Activity {
             public void onError(String message) {
                 if (isFinishing()) return;
                 mPaiCard.setVisibility(View.GONE);
+                mLastScoreRead = 0; // try again next refresh
             }
         });
     }
@@ -273,6 +302,10 @@ public class Pedometer extends Activity {
         // Ring max is 1000 for a smooth arc.
         int progress = goal > 0 ? (int) Math.min(1000L, 1000L * Math.max(0, mStepValue) / goal) : 0;
         mStepRing.setProgress(progress);
+        // Read out by screen readers, e.g. "6,240 of 8,000 steps".
+        mStepRing.setContentDescription(getString(R.string.step_ring_description,
+                String.format(Locale.getDefault(), "%,d", Math.max(0, mStepValue)),
+                String.format(Locale.getDefault(), "%,d", goal)));
     }
     
     @Override
@@ -291,19 +324,15 @@ public class Pedometer extends Activity {
         
         mUtils.setSpeak(mSettings.getBoolean("speak", false));
         
-        // Read from preferences if the service was running on the last onPause
-        mIsRunning = mPedometerSettings.isServiceRunning();
-        
-        // Start the service if this is considered to be an application start (last onPause was long ago)
-        if (!mIsRunning && mPedometerSettings.isNewStart()) {
+        // Count unless the user paused or quit. On the very first launch
+        // there is no saved choice yet, so start counting.
+        mIsRunning = false;
+        if (StepService.isCountingEnabled(this) || !StepService.hasCountingChoice(this)) {
             startStepService();
+        }
+        if (mIsRunning) {
             bindStepService();
         }
-        else if (mIsRunning) {
-            bindStepService();
-        }
-        
-        mPedometerSettings.clearServiceRunning();
 
         mStepValueView     = (TextView) findViewById(R.id.step_value);
         mPaceValueView     = (TextView) findViewById(R.id.pace_value);
@@ -379,6 +408,7 @@ public class Pedometer extends Activity {
         mPaiBar = (ProgressBar) findViewById(R.id.pai_bar);
         showCalorieGoal();
         showStepProgress();
+        mLastScoreRead = 0; // fresh score each time the screen opens
         mWatchHandler.removeCallbacks(mWatchRefresh);
         mWatchHandler.post(mWatchRefresh);
     }
@@ -396,15 +426,7 @@ public class Pedometer extends Activity {
     protected void onPause() {
         Log.i(TAG, "[ACTIVITY] onPause");
         mWatchHandler.removeCallbacks(mWatchRefresh);
-        if (mIsRunning) {
-            unbindStepService();
-        }
-        if (mQuitting) {
-            mPedometerSettings.saveServiceRunningWithNullTimestamp(mIsRunning);
-        }
-        else {
-            mPedometerSettings.saveServiceRunningWithTimestamp(mIsRunning);
-        }
+        unbindStepService();
 
         super.onPause();
         savePaceSetting();
@@ -472,26 +494,33 @@ public class Pedometer extends Activity {
         }
     }
     
+    /** True while this activity is bound to the service. */
+    private boolean mBound;
+
     private void bindStepService() {
+        if (mBound) return;
         Log.i(TAG, "[SERVICE] Bind");
-        bindService(new Intent(Pedometer.this, 
+        mBound = bindService(new Intent(Pedometer.this,
                 StepService.class), mConnection, Context.BIND_AUTO_CREATE);
     }
 
     private void unbindStepService() {
+        if (!mBound) return;
         Log.i(TAG, "[SERVICE] Unbind");
+        // Stop the service calling back into this (soon hidden) activity.
+        if (mService != null) {
+            mService.registerCallback(null);
+        }
         unbindService(mConnection);
+        mBound = false;
+        mService = null;
     }
     
     private void stopStepService() {
         Log.i(TAG, "[SERVICE] Stop");
         // The user paused or quit: don't restart counting after a reboot.
         StepService.setCountingEnabled(this, false);
-        if (mService != null) {
-            Log.i(TAG, "[SERVICE] stopService");
-            stopService(new Intent(Pedometer.this,
-                  StepService.class));
-        }
+        stopService(new Intent(Pedometer.this, StepService.class));
         mIsRunning = false;
     }
     
@@ -571,7 +600,7 @@ public class Pedometer extends Activity {
                 resetValues(true);
                 return true;
             case MENU_QUIT:
-                resetValues(false);
+                // Stop counting but keep today's totals (they go into History).
                 unbindStepService();
                 stopStepService();
                 mQuitting = true;

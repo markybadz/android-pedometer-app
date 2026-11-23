@@ -11,13 +11,29 @@ android {
         // Health Connect requires Android 8.0 (API 26) or newer.
         minSdk 26
         targetSdk 34
-        versionCode 7
-        versionName '2.0.0'
+        versionCode 8
+        versionName '2.1.0'
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 
+    // A fixed debug key, so every build from GitHub Actions is signed the
+    // same way and installs as an update over the previous one. It is a
+    // test key only (password "android", like Android's own debug key);
+    // use a private release key before publishing to the Play Store.
+    signingConfigs {
+        debug {
+            storeFile file('ci-debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
         release {
             minifyEnabled false
         }
@@ -26,6 +42,11 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
+    }
+
+    testOptions {
+        // Android framework calls (Log etc.) return defaults in JVM unit tests.
+        unitTests.returnDefaultValues = true
     }
 
     lint {

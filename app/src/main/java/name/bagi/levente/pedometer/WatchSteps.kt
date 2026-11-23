@@ -71,6 +71,15 @@ object WatchSteps {
     private const val PROVIDER_PACKAGE = "com.google.android.apps.healthdata"
 
     @JvmField
+    val STEPS_PERMISSION: String = HealthPermission.getReadPermission(StepsRecord::class)
+    @JvmField
+    val HEART_RATE_PERMISSION: String = HealthPermission.getReadPermission(HeartRateRecord::class)
+    private val DISTANCE_PERMISSION = HealthPermission.getReadPermission(DistanceRecord::class)
+    private val CALORIES_PERMISSION = HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class)
+    private val RESTING_PERMISSION = HealthPermission.getReadPermission(RestingHeartRateRecord::class)
+
+    /** Everything the app asks for. Users may grant only some; each read copes with that. */
+    @JvmField
     val PERMISSIONS: Set<String> = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
         HealthPermission.getReadPermission(DistanceRecord::class),
@@ -131,14 +140,15 @@ object WatchSteps {
         PermissionController.createRequestPermissionResultContract()
             .createIntent(context, PERMISSIONS)
 
+    /** The Health Connect read permissions the user has granted to this app. */
     @JvmStatic
-    fun hasPermissions(context: Context, callback: Callback<Boolean>) {
+    fun grantedPermissions(context: Context, callback: Callback<Set<String>>) {
         val app = context.applicationContext
         scope.launch {
             try {
-                val granted = HealthConnectClient.getOrCreate(app)
-                    .permissionController.getGrantedPermissions()
-                callback.onResult(granted.containsAll(PERMISSIONS))
+                callback.onResult(
+                    HealthConnectClient.getOrCreate(app).permissionController.getGrantedPermissions()
+                )
             } catch (e: Exception) {
                 Log.w(TAG, "Permission check failed", e)
                 callback.onError(e.message ?: e.javaClass.simpleName)
@@ -153,17 +163,21 @@ object WatchSteps {
         scope.launch {
             try {
                 val client = HealthConnectClient.getOrCreate(app)
+                val granted = client.permissionController.getGrantedPermissions()
                 val start = LocalDate.now().atStartOfDay(ZoneId.systemDefault()).toInstant()
                 val range = TimeRangeFilter.between(start, Instant.now())
                 val origins = originsFor(source)
 
+                // Only ask for what the user allowed; asking for more throws.
+                val metrics = mutableSetOf<androidx.health.connect.client.aggregate.AggregateMetric<*>>(
+                    StepsRecord.COUNT_TOTAL
+                )
+                if (DISTANCE_PERMISSION in granted) metrics.add(DistanceRecord.DISTANCE_TOTAL)
+                if (CALORIES_PERMISSION in granted) metrics.add(ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL)
+
                 val totals = client.aggregate(
                     AggregateRequest(
-                        metrics = setOf(
-                            StepsRecord.COUNT_TOTAL,
-                            DistanceRecord.DISTANCE_TOTAL,
-                            ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
-                        ),
+                        metrics = metrics,
                         timeRangeFilter = range,
                         dataOriginFilter = origins,
                     )
@@ -234,6 +248,27 @@ object WatchSteps {
         @JvmField val samples: Int,
     )
 
+    /** Pure maths for the activity score, kept apart so it can be unit-tested. */
+    object ScoreMath {
+        /**
+         * Points per minute at a given heart rate. Nothing below 30% of
+         * heart-rate reserve; above that it rises steeply, so hard effort
+         * counts far more than easy effort (~0.17/min easy walking,
+         * ~2.5/min very hard).
+         */
+        @JvmStatic
+        fun pointsPerMinute(bpm: Int, restingBpm: Int, maxBpm: Int): Double {
+            val reserve = (maxBpm - restingBpm).coerceAtLeast(1)
+            val intensity = (bpm - restingBpm).toDouble() / reserve
+            if (intensity < 0.30) return 0.0
+            return 0.015 * exp(6.0 * intensity.coerceAtMost(1.0))
+        }
+
+        /** Maximum heart rate from age (Tanaka: 208 - 0.7 x age). */
+        @JvmStatic
+        fun maxHeartRate(age: Int): Int = (208 - 0.7 * age).toInt()
+    }
+
     /**
      * Estimates a PAI-style weekly activity score from the watch's heart rate.
      *
@@ -264,17 +299,20 @@ object WatchSteps {
                 val weekStart = LocalDate.now().minusDays(6).atStartOfDay(zone).toInstant()
                 val todayStart = LocalDate.now().atStartOfDay(zone).toInstant()
 
-                // Resting heart rate: average of the last 7 days, if recorded.
-                val resting = client.readRecords(
-                    ReadRecordsRequest(
-                        recordType = RestingHeartRateRecord::class,
-                        timeRangeFilter = TimeRangeFilter.between(weekStart, now),
-                        dataOriginFilter = origins,
-                    )
-                ).records.map { it.beatsPerMinute }
+                // Resting heart rate: average of the last 7 days, if recorded and allowed.
+                val granted = client.permissionController.getGrantedPermissions()
+                val resting = if (RESTING_PERMISSION in granted) {
+                    client.readRecords(
+                        ReadRecordsRequest(
+                            recordType = RestingHeartRateRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(weekStart, now),
+                            dataOriginFilter = origins,
+                        )
+                    ).records.map { it.beatsPerMinute }
+                } else emptyList()
                 val restingBpm = if (resting.isNotEmpty()) resting.average().toInt()
                                  else fallbackRestingBpm
-                val maxBpm = (208 - 0.7 * age).toInt()
+                val maxBpm = ScoreMath.maxHeartRate(age)
 
                 // All heart-rate samples for the week, oldest first.
                 val samples = ArrayList<Pair<Instant, Long>>()
@@ -304,7 +342,7 @@ object WatchSteps {
                     // A sample stands for the time until the next one, at most 10 minutes.
                     val next = if (i + 1 < samples.size) samples[i + 1].first else time.plusSeconds(60)
                     val minutes = ChronoUnit.SECONDS.between(time, next).coerceIn(0L, 600L) / 60.0
-                    val points = pointsPerMinute(bpm.toInt(), restingBpm, maxBpm) * minutes
+                    val points = ScoreMath.pointsPerMinute(bpm.toInt(), restingBpm, maxBpm) * minutes
                     weekly += points
                     if (!time.isBefore(todayStart)) today += points
                 }
@@ -317,19 +355,6 @@ object WatchSteps {
                 callback.onError(e.message ?: e.javaClass.simpleName)
             }
         }
-    }
-
-    /**
-     * Points per minute at a given heart rate. Nothing below 30% of heart-rate
-     * reserve; above that it rises steeply, so hard effort counts far more
-     * than easy effort (~0.17/min easy walking, ~2.5/min very hard).
-     */
-    @JvmStatic
-    fun pointsPerMinute(bpm: Int, restingBpm: Int, maxBpm: Int): Double {
-        val reserve = (maxBpm - restingBpm).coerceAtLeast(1)
-        val intensity = (bpm - restingBpm).toDouble() / reserve
-        if (intensity < 0.30) return 0.0
-        return 0.015 * exp(6.0 * intensity.coerceAtMost(1.0))
     }
 
     private fun originsFor(source: String): Set<DataOrigin> =

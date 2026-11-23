@@ -49,6 +49,8 @@ public class Utils implements TextToSpeech.OnInitListener {
             mTts.shutdown();
             mTts = null;
         }
+        // Don't keep the stopped service alive through this singleton.
+        mService = null;
         Log.i(TAG, "TextToSpeech Shut Down.");
 
     }

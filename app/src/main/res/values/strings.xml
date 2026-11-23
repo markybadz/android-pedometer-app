@@ -122,11 +122,18 @@
     <string name="pai_no_heart_rate">No heart rate from your watch yet. In Zepp, allow heart rate in Health Connect.</string>
     <string name="health_privacy_text">Pedometer reads steps, distance, active calories and heart rate from Health Connect so it can show the data your Amazfit watch (synced by the Zepp app) recorded, and estimate a weekly activity score.\n\nThe data is only shown on this phone. Pedometer does not write to Health Connect, and does not send your data anywhere.\n\nThe activity score is an estimate made by this app from your heart rate. It is not Zepp\'s official PAI score and is not medical advice.</string>
 
+    <!-- Notifications -->
+    <string name="notification_steps">%1$s steps today</string>
+    <string name="goal_reached_title">Step goal reached!</string>
+    <string name="goal_reached_text">You\'ve walked %1$s steps today.</string>
+    <string name="pai_allow_heart_rate">Tap here to allow heart rate in Health Connect to see your weekly activity score.</string>
+
     <!-- Main screen cards -->
     <string name="card_calorie_goal">Calorie goal</string>
     <string name="card_watch">Amazfit watch</string>
     <string name="card_score">Activity score · PAI-style estimate</string>
     <string name="step_goal_progress">of %1$s steps</string>
+    <string name="step_ring_description">%1$s of %2$s steps</string>
 
     <!-- New settings -->
     <string name="step_goal_setting">Daily step goal</string>
