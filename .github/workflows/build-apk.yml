@@ -42,7 +42,7 @@ jobs:
         run: |
           gh release delete apk-latest --yes --cleanup-tag || true
           gh release create apk-latest pedometer.apk \
-            --title "Pedometer – latest build" \
+            --title "Pedometer app_Android" \
             --notes "Built automatically from \`${GITHUB_REF_NAME}\` at commit ${GITHUB_SHA::7}. Debug-signed: allow installing from unknown sources to install it." \
             --target "$GITHUB_SHA" \
             --latest
