@@ -1,17 +1,21 @@
 plugins {
     id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
 }
 
 android {
     namespace 'name.bagi.levente.pedometer'
-    compileSdk 34
+    compileSdk 36
 
     defaultConfig {
         applicationId 'name.bagi.levente.pedometer'
-        minSdk 21
+        // Health Connect requires Android 8.0 (API 26) or newer.
+        minSdk 26
         targetSdk 34
-        versionCode 6
-        versionName '1.5.0'
+        versionCode 7
+        versionName '2.0.0'
+
+        testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
 
     buildTypes {
@@ -25,7 +29,20 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+
     lint {
         abortOnError false
     }
+}
+
+dependencies {
+    // Reads steps the Zepp app (Amazfit) writes to Health Connect
+    implementation 'androidx.health.connect:connect-client:1.1.0'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
+    implementation 'androidx.activity:activity:1.9.3'
+
+    testImplementation 'junit:junit:4.13.2'
 }

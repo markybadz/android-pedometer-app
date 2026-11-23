@@ -37,7 +37,7 @@ abstract public class EditMeasurementPreference extends EditTextPreference {
 	abstract protected void initPreferenceDetails();
 	
 	protected void showDialog(Bundle state) {
-		mIsMetric = PreferenceManager.getDefaultSharedPreferences(getContext()).getString("units", "imperial").equals("metric");
+		mIsMetric = PreferenceManager.getDefaultSharedPreferences(getContext()).getString("units", "metric").equals("metric");
 		setDialogTitle(
 				getContext().getString(mTitleResource) + 
 				" (" + 

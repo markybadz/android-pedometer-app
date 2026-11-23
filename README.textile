@@ -6,7 +6,7 @@ _Android app, that watches your every step_
 
 h2. Download
 
-"Download the latest APK":https://github.com/markybadz/android-pedometer-app/releases/latest/download/pedometer.apk (Android 5.0 or newer)
+"Download the latest APK":https://github.com/markybadz/android-pedometer-app/releases/latest/download/pedometer.apk (Android 8.0 or newer)
 
 The APK is built automatically by GitHub Actions on every push. It is debug-signed, so your phone will ask you to allow installing apps from unknown sources.
 
@@ -17,6 +17,15 @@ h2. Features
 It counts your steps by using the sensors in the phone.
 
 It calculates the pace (steps per minute), and can help you maintain a desired pace by speaking to you.
+
+h2. New in v2.0
+
+* *Amazfit watch support:* shows your watch's steps, distance and active calories. The Zepp app (or Zepp Life for older bands) syncs the watch to Health Connect, and Pedometer reads them from there. Turn it on in Settings > Amazfit watch.
+* *Activity score (PAI-style estimate):* a weekly score from your watch's heart rate; aim for 100 or more a week. Zepp doesn't share its official PAI with other apps, so this is the app's own estimate and won't match Zepp exactly.
+* *Calorie tracker:* daily calorie goal with progress on the main screen.
+* *History:* daily steps and calories for the last 30 days, next to your watch's steps.
+* Uses the phone's built-in step sensor when it has one (more accurate, far less battery), with the old accelerometer method as a fallback.
+* Resets at midnight, keeps counting after a reboot, metric units by default.
 
 h2. Changelog
 

@@ -83,4 +83,16 @@
     </string-array>
 
 
+    <string-array name="watch_source_preference">
+        <item>@string/watch_source_zepp</item>
+        <item>@string/watch_source_zepp_life</item>
+        <item>@string/watch_source_any</item>
+    </string-array>
+
+    <string-array name="watch_source_preference_values">
+        <item>com.huami.watch.hmwatchmanager</item>
+        <item>com.xiaomi.hm.health</item>
+        <item>any</item>
+    </string-array>
+
 </resources>

@@ -6,6 +6,12 @@
     <PreferenceCategory
             android:title="@string/steps_settings_title">
             
+        <CheckBoxPreference
+                android:key="hardware_sensor"
+                android:title="@string/hardware_sensor_setting"
+                android:summary="@string/hardware_sensor_setting_details"
+                android:defaultValue="true" />
+
         <ListPreference
                 android:key="sensitivity"
                 android:title="@string/sensitivity_setting"
@@ -31,21 +37,28 @@
                 android:entries="@array/units_preference"
                 android:entryValues="@array/units_preference_values"
                 android:dialogTitle="@string/units_setting_title"
-                android:defaultValue="imperial" />
+                android:defaultValue="metric" />
 
         <name.bagi.levente.pedometer.preferences.StepLengthPreference
                 android:key="step_length"
                 android:title="@string/step_length_setting"
                 android:summary="@string/step_length_setting_details"
                 android:dialogTitle="@string/step_length_setting_title"
-                android:defaultValue="20" />
+                android:defaultValue="70" />
             
         <name.bagi.levente.pedometer.preferences.BodyWeightPreference
                 android:key="body_weight"
                 android:title="@string/body_weight_setting"
                 android:summary="@string/body_weight_setting_details"
                 android:dialogTitle="@string/body_weight_setting_title"
-                android:defaultValue="50" />
+                android:defaultValue="60" />
+
+        <EditTextPreference
+                android:key="calorie_goal"
+                android:title="@string/calorie_goal_setting"
+                android:summary="@string/calorie_goal_setting_details"
+                android:inputType="number"
+                android:defaultValue="300" />
             
         <ListPreference
                 android:key="exercise_type"
@@ -54,7 +67,7 @@
                 android:entries="@array/exercise_type_preference"
                 android:entryValues="@array/exercise_type_preference_values"
                 android:dialogTitle="@string/exercise_type_setting_title"
-                android:defaultValue="running" />
+                android:defaultValue="walking" />
                 
         <ListPreference
                 android:key="maintain"
@@ -67,6 +80,37 @@
 
     </PreferenceCategory>
                 
+    <PreferenceCategory
+            android:title="@string/watch_settings_title">
+        <CheckBoxPreference
+                android:key="watch_enabled"
+                android:title="@string/watch_enabled_setting"
+                android:summary="@string/watch_enabled_setting_details"
+                android:defaultValue="false" />
+        <ListPreference
+                android:key="watch_source"
+                android:title="@string/watch_source_setting"
+                android:summary="@string/watch_source_setting_details"
+                android:entries="@array/watch_source_preference"
+                android:entryValues="@array/watch_source_preference_values"
+                android:dependency="watch_enabled"
+                android:defaultValue="com.huami.watch.hmwatchmanager" />
+        <EditTextPreference
+                android:key="age"
+                android:title="@string/age_setting"
+                android:summary="@string/age_setting_details"
+                android:inputType="number"
+                android:dependency="watch_enabled"
+                android:defaultValue="35" />
+        <EditTextPreference
+                android:key="resting_hr"
+                android:title="@string/resting_hr_setting"
+                android:summary="@string/resting_hr_setting_details"
+                android:inputType="number"
+                android:dependency="watch_enabled"
+                android:defaultValue="65" />
+    </PreferenceCategory>
+
     <PreferenceCategory
             android:title="@string/voice_settings_title">
         <CheckBoxPreference

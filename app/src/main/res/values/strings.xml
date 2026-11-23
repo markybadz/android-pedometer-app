@@ -48,7 +48,7 @@
     <string name="keep_screen_on">Screen on (keep screen dim)</string>
     <string name="wake_up">Aggressive (wake up when I turn screen off)</string>
     <string name="units_setting">Units</string>
-    <string name="units_setting_details">Imperial or metric units</string>
+    <string name="units_setting_details">Metric or imperial units</string>
     <string name="units_setting_title">Choose your units</string>
     <string name="units_metric">metric (kilometers)</string>
     <string name="units_imperial">imperial (miles)</string>
@@ -96,5 +96,48 @@
     <string name="incorrect_step_length">Incorrect step length format! Go to the Settings to change it!</string>
 
     <string name="quit">Quit</string>
+
+    <!-- History -->
+    <string name="history">History</string>
+    <string name="history_day">Day</string>
+    <string name="history_phone">Steps</string>
+    <string name="history_kcal">kcal</string>
+    <string name="history_watch">Watch</string>
+    <string name="today">Today</string>
+
+    <!-- Calorie goal -->
+    <string name="calorie_goal_progress">Calories: %1$d / %2$d kcal goal (%3$d%%)</string>
+    <string name="calorie_goal_reached">Calories: %1$d / %2$d kcal: goal reached (%3$d%%)</string>
+
+    <!-- Amazfit watch via Health Connect -->
+    <string name="watch_today">Amazfit watch today: %1$s steps · %2$s · %3$s active kcal · synced %4$s</string>
+    <string name="watch_no_data_today">Amazfit watch: no steps in Health Connect yet today. Open the Zepp app to sync your watch.</string>
+    <string name="watch_grant_access">Amazfit watch: tap to allow reading your watch data from Health Connect.</string>
+    <string name="watch_install_health_connect">Amazfit watch: tap to install or update Health Connect.</string>
+    <string name="watch_no_health_connect">Amazfit watch: Health Connect isn\'t available on this phone.</string>
+    <string name="watch_error">Amazfit watch: couldn\'t read data (%1$s)</string>
+    <string name="km_short">km</string>
+    <string name="mi_short">mi</string>
+    <string name="pai_value">Activity score (PAI-style estimate): %1$d this week, +%2$d today. Aim for 100 or more a week.</string>
+    <string name="pai_no_heart_rate">Activity score: no heart rate from your watch yet. In Zepp, allow heart rate in Health Connect.</string>
+    <string name="health_privacy_text">Pedometer reads steps, distance, active calories and heart rate from Health Connect so it can show the data your Amazfit watch (synced by the Zepp app) recorded, and estimate a weekly activity score.\n\nThe data is only shown on this phone. Pedometer does not write to Health Connect, and does not send your data anywhere.\n\nThe activity score is an estimate made by this app from your heart rate. It is not Zepp\'s official PAI score and is not medical advice.</string>
+
+    <!-- New settings -->
+    <string name="hardware_sensor_setting">Use phone\'s step sensor</string>
+    <string name="hardware_sensor_setting_details">More accurate and uses much less battery. Sensitivity only applies when this is off or the phone has no step sensor.</string>
+    <string name="calorie_goal_setting">Daily calorie goal</string>
+    <string name="calorie_goal_setting_details">kcal to burn each day</string>
+    <string name="watch_settings_title">Amazfit watch</string>
+    <string name="watch_enabled_setting">Show Amazfit watch data</string>
+    <string name="watch_enabled_setting_details">Reads what the Zepp app saves to Health Connect</string>
+    <string name="watch_source_setting">Watch app</string>
+    <string name="watch_source_setting_details">Which app syncs your watch</string>
+    <string name="watch_source_zepp">Zepp (current Amazfit watches)</string>
+    <string name="watch_source_zepp_life">Zepp Life (older Amazfit bands, Mi Band)</string>
+    <string name="watch_source_any">Any app in Health Connect</string>
+    <string name="age_setting">Age</string>
+    <string name="age_setting_details">For the activity score (maximum heart rate)</string>
+    <string name="resting_hr_setting">Resting heart rate</string>
+    <string name="resting_hr_setting_details">bpm; used only if your watch hasn\'t recorded one</string>
 
 </resources>

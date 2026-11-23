@@ -41,6 +41,10 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import java.text.DateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 
@@ -87,12 +91,167 @@ public class Pedometer extends Activity {
         
         mUtils = Utils.getInstance();
 
-        // Android 13+: the running-service notification needs runtime permission.
+        // Runtime permissions: the step sensor chip (Android 10+) and the
+        // "counting steps" notification (Android 13+).
+        List<String> needed = new ArrayList<String>();
+        if (Build.VERSION.SDK_INT >= 29
+                && checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION)
+                    != PackageManager.PERMISSION_GRANTED) {
+            needed.add(Manifest.permission.ACTIVITY_RECOGNITION);
+        }
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                     != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, 1);
+            needed.add(Manifest.permission.POST_NOTIFICATIONS);
         }
+        if (!needed.isEmpty()) {
+            requestPermissions(needed.toArray(new String[0]), REQ_PERMISSIONS);
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        // If step-sensor permission was just granted, switch the service over to it.
+        if (requestCode == REQ_PERMISSIONS && mService != null) {
+            mService.restartDetector();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_HEALTH_CONNECT) {
+            refreshWatch();
+        }
+    }
+
+    //-------------------------------------------------------------------
+    // Amazfit watch (via Health Connect) and activity score
+
+    private static final int REQ_PERMISSIONS = 1;
+    private static final int REQ_HEALTH_CONNECT = 2;
+    private static final long WATCH_REFRESH_MS = 60 * 1000;
+
+    private TextView mCalorieGoalView;
+    private TextView mWatchView;
+    private TextView mPaiView;
+    private final Handler mWatchHandler = new Handler();
+    private final Runnable mWatchRefresh = new Runnable() {
+        public void run() {
+            refreshWatch();
+            mWatchHandler.postDelayed(this, WATCH_REFRESH_MS);
+        }
+    };
+
+    /** Shows the watch line, or a prompt explaining what's needed to show it. */
+    private void refreshWatch() {
+        if (mWatchView == null || mPedometerSettings == null) return;
+        if (!mPedometerSettings.isWatchEnabled()) {
+            mWatchView.setVisibility(View.GONE);
+            mPaiView.setVisibility(View.GONE);
+            return;
+        }
+        mWatchView.setVisibility(View.VISIBLE);
+        mWatchView.setOnClickListener(null);
+
+        if (WatchSteps.needsProviderUpdate(this)) {
+            showWatchPrompt(getString(R.string.watch_install_health_connect),
+                    WatchSteps.installIntent(), false);
+            return;
+        }
+        if (!WatchSteps.isAvailable(this)) {
+            mWatchView.setText(R.string.watch_no_health_connect);
+            mPaiView.setVisibility(View.GONE);
+            return;
+        }
+        WatchSteps.hasPermissions(this, new WatchSteps.Callback<Boolean>() {
+            public void onResult(Boolean granted) {
+                if (isFinishing()) return;
+                if (granted) {
+                    readWatchData();
+                } else {
+                    showWatchPrompt(getString(R.string.watch_grant_access),
+                            WatchSteps.permissionIntent(Pedometer.this), true);
+                }
+            }
+            public void onError(String message) {
+                if (isFinishing()) return;
+                mWatchView.setText(getString(R.string.watch_error, message));
+            }
+        });
+    }
+
+    private void showWatchPrompt(String text, final Intent intent, final boolean forResult) {
+        mWatchView.setText(text);
+        mPaiView.setVisibility(View.GONE);
+        mWatchView.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                try {
+                    if (forResult) {
+                        startActivityForResult(intent, REQ_HEALTH_CONNECT);
+                    } else {
+                        startActivity(intent);
+                    }
+                } catch (RuntimeException e) {
+                    mWatchView.setText(getString(R.string.watch_error, e.getMessage()));
+                }
+            }
+        });
+    }
+
+    private void readWatchData() {
+        final String source = mPedometerSettings.getWatchSource();
+        WatchSteps.readToday(this, source, new WatchSteps.Callback<WatchSteps.Today>() {
+            public void onResult(WatchSteps.Today today) {
+                if (isFinishing()) return;
+                if (today.lastSyncMillis == 0) {
+                    mWatchView.setText(R.string.watch_no_data_today);
+                    return;
+                }
+                double distance = mIsMetric ? today.meters / 1000.0 : today.meters / 1609.344;
+                String units = getString(mIsMetric ? R.string.km_short : R.string.mi_short);
+                String synced = DateFormat.getTimeInstance(DateFormat.SHORT)
+                        .format(new Date(today.lastSyncMillis));
+                mWatchView.setText(getString(R.string.watch_today,
+                        String.format(Locale.getDefault(), "%,d", today.steps),
+                        String.format(Locale.getDefault(), "%.2f %s", distance, units),
+                        String.format(Locale.getDefault(), "%,d", Math.round(today.activeKcal)),
+                        synced));
+            }
+            public void onError(String message) {
+                if (isFinishing()) return;
+                mWatchView.setText(getString(R.string.watch_error, message));
+            }
+        });
+
+        WatchSteps.readActivityScore(this, source, mPedometerSettings.getAge(),
+                mPedometerSettings.getRestingHeartRate(),
+                new WatchSteps.Callback<WatchSteps.ActivityScore>() {
+            public void onResult(WatchSteps.ActivityScore score) {
+                if (isFinishing()) return;
+                mPaiView.setVisibility(View.VISIBLE);
+                if (score.samples == 0) {
+                    mPaiView.setText(R.string.pai_no_heart_rate);
+                } else {
+                    mPaiView.setText(getString(R.string.pai_value, score.weekly, score.today));
+                }
+            }
+            public void onError(String message) {
+                if (isFinishing()) return;
+                mPaiView.setVisibility(View.GONE);
+            }
+        });
+    }
+
+    /** "120 / 300 kcal goal (40%)", from the phone's calorie estimate. */
+    private void showCalorieGoal() {
+        if (mCalorieGoalView == null || mPedometerSettings == null) return;
+        int goal = mPedometerSettings.getCalorieGoal();
+        int percent = goal > 0 ? Math.round(100f * Math.max(0, mCaloriesValue) / goal) : 0;
+        mCalorieGoalView.setText(getString(
+                percent >= 100 ? R.string.calorie_goal_reached : R.string.calorie_goal_progress,
+                mCaloriesValue, goal, percent));
     }
     
     @Override
@@ -187,6 +346,13 @@ public class Pedometer extends Activity {
         
         
         displayDesiredPaceOrSpeed();
+
+        mCalorieGoalView = (TextView) findViewById(R.id.calorie_goal_value);
+        mWatchView = (TextView) findViewById(R.id.watch_value);
+        mPaiView = (TextView) findViewById(R.id.pai_value);
+        showCalorieGoal();
+        mWatchHandler.removeCallbacks(mWatchRefresh);
+        mWatchHandler.post(mWatchRefresh);
     }
     
     private void displayDesiredPaceOrSpeed() {
@@ -201,6 +367,7 @@ public class Pedometer extends Activity {
     @Override
     protected void onPause() {
         Log.i(TAG, "[ACTIVITY] onPause");
+        mWatchHandler.removeCallbacks(mWatchRefresh);
         if (mIsRunning) {
             unbindStepService();
         }
@@ -290,6 +457,8 @@ public class Pedometer extends Activity {
     
     private void stopStepService() {
         Log.i(TAG, "[SERVICE] Stop");
+        // The user paused or quit: don't restart counting after a reboot.
+        StepService.setCountingEnabled(this, false);
         if (mService != null) {
             Log.i(TAG, "[SERVICE] stopService");
             stopService(new Intent(Pedometer.this,
@@ -327,6 +496,7 @@ public class Pedometer extends Activity {
     private static final int MENU_PAUSE = 1;
     private static final int MENU_RESUME = 2;
     private static final int MENU_RESET = 3;
+    private static final int MENU_HISTORY = 4;
     
     /* Creates the menu items */
     public boolean onPrepareOptionsMenu(Menu menu) {
@@ -344,6 +514,10 @@ public class Pedometer extends Activity {
         menu.add(0, MENU_RESET, 0, R.string.reset)
         .setIcon(android.R.drawable.ic_menu_close_clear_cancel)
         .setShortcut('2', 'r');
+        menu.add(0, MENU_HISTORY, 0, R.string.history)
+        .setIcon(android.R.drawable.ic_menu_agenda)
+        .setShortcut('4', 'h')
+        .setIntent(new Intent(this, HistoryActivity.class));
         menu.add(0, MENU_SETTINGS, 0, R.string.settings)
         .setIcon(android.R.drawable.ic_menu_preferences)
         .setShortcut('8', 's')
@@ -450,6 +624,7 @@ public class Pedometer extends Activity {
                     else {
                         mCaloriesValueView.setText("" + (int)mCaloriesValue);
                     }
+                    showCalorieGoal();
                     break;
                 default:
                     super.handleMessage(msg);

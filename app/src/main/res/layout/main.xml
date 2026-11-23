@@ -160,6 +160,42 @@
 
     </LinearLayout>
 
+    <!-- Calorie goal, Amazfit watch and activity score -->
+    <LinearLayout android:id="@+id/extras"
+        android:orientation="vertical"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/display_background"
+        android:padding="@dimen/padding">
+
+        <TextView android:id="@+id/calorie_goal_value"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/extra_text"
+            android:paddingTop="@dimen/padding"
+            android:paddingBottom="@dimen/padding"
+            android:text=""/>
+
+        <TextView android:id="@+id/watch_value"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/extra_text"
+            android:paddingTop="@dimen/padding"
+            android:paddingBottom="@dimen/padding"
+            android:visibility="gone"
+            android:text=""/>
+
+        <TextView android:id="@+id/pai_value"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:textSize="@dimen/extra_text"
+            android:paddingTop="@dimen/padding"
+            android:paddingBottom="@dimen/padding"
+            android:visibility="gone"
+            android:text=""/>
+
+    </LinearLayout>
+
     <!-- Desired pace/speed row -->
     <LinearLayout
         android:id="@+id/desired_pace_control"

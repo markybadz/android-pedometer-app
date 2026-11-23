@@ -61,6 +61,18 @@ public class StepDetector implements SensorEventListener
         mStepListeners.add(sl);
     }
     
+    /**
+     * Reports one step found by something other than the accelerometer
+     * algorithm below (the phone's built-in step detector chip).
+     */
+    public void onExternalStep() {
+        synchronized (this) {
+            for (StepListener stepListener : mStepListeners) {
+                stepListener.onStep();
+            }
+        }
+    }
+
     //public void onSensorChanged(int sensor, float[] values) {
     public void onSensorChanged(SensorEvent event) {
         Sensor sensor = event.sensor; 

@@ -37,12 +37,12 @@ public class PedometerSettings {
     }
     
     public boolean isMetric() {
-        return mSettings.getString("units", "imperial").equals("metric");
+        return mSettings.getString("units", "metric").equals("metric");
     }
     
     public float getStepLength() {
         try {
-            return Float.valueOf(mSettings.getString("step_length", "20").trim());
+            return Float.valueOf(mSettings.getString("step_length", "70").trim());
         }
         catch (NumberFormatException e) {
             // TODO: reset value, & notify user somehow
@@ -52,7 +52,7 @@ public class PedometerSettings {
     
     public float getBodyWeight() {
         try {
-            return Float.valueOf(mSettings.getString("body_weight", "50").trim());
+            return Float.valueOf(mSettings.getString("body_weight", "60").trim());
         }
         catch (NumberFormatException e) {
             // TODO: reset value, & notify user somehow
@@ -61,7 +61,7 @@ public class PedometerSettings {
     }
 
     public boolean isRunning() {
-        return mSettings.getString("exercise_type", "running").equals("running");
+        return mSettings.getString("exercise_type", "walking").equals("running");
     }
 
     public int getMaintainOption() {
@@ -136,6 +136,49 @@ public class PedometerSettings {
         && mSettings.getBoolean("tell_fasterslower", false);
     }
     
+    //-------------------------------------------------------------------
+    // Step sensor & Amazfit watch:
+
+    /** Use the phone's built-in step detector chip instead of the accelerometer. */
+    public boolean useHardwareSensor() {
+        return mSettings.getBoolean("hardware_sensor", true);
+    }
+
+    /** Show steps the Zepp app (Amazfit) saves to Health Connect. */
+    public boolean isWatchEnabled() {
+        return mSettings.getBoolean("watch_enabled", false);
+    }
+
+    /** Package name of the app whose Health Connect steps to read, or WatchSteps.SOURCE_ANY. */
+    public String getWatchSource() {
+        return mSettings.getString("watch_source", WatchSteps.SOURCE_ZEPP);
+    }
+
+    /** Daily calorie goal in kcal. */
+    public int getCalorieGoal() {
+        return parseInt(mSettings.getString("calorie_goal", "300"), 300);
+    }
+
+    /** Age in years, for the activity score's maximum heart rate. */
+    public int getAge() {
+        return parseInt(mSettings.getString("age", "35"), 35);
+    }
+
+    /** Resting heart rate (bpm) to use when the watch hasn't recorded one. */
+    public int getRestingHeartRate() {
+        return parseInt(mSettings.getString("resting_hr", "65"), 65);
+    }
+
+    private static int parseInt(String value, int fallback) {
+        try {
+            int n = Integer.parseInt(value.trim());
+            return n > 0 ? n : fallback;
+        }
+        catch (NumberFormatException e) {
+            return fallback;
+        }
+    }
+
     public boolean wakeAggressively() {
         return mSettings.getString("operation_level", "run_in_background").equals("wake_up");
     }

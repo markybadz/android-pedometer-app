@@ -18,6 +18,7 @@
 
 package name.bagi.levente.pedometer;
 
+import android.Manifest;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -29,8 +30,11 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Binder;
 import android.os.Build;
@@ -39,6 +43,8 @@ import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.util.Log;
 import android.widget.Toast;
+
+import java.time.LocalDate;
 
 
 
@@ -58,6 +64,20 @@ public class StepService extends Service {
     private static final String CHANNEL_ID = "step_service";
     private static final int NOTIFICATION_ID = 1;
     private static final int SAVE_EVERY_N_STEPS = 20;
+    /** State key: true while the user wants counting on (used to restart after reboot). */
+    private static final String KEY_COUNTING = "counting_enabled";
+    /** State key: the ISO date the current totals belong to. */
+    private static final String KEY_DAY = "day";
+
+    /** Whether counting should be running (it was started and not paused or quit). */
+    public static boolean isCountingEnabled(Context context) {
+        return context.getSharedPreferences("state", 0).getBoolean(KEY_COUNTING, false);
+    }
+
+    /** Called by the activity when the user pauses or quits, so counting stays off after a reboot. */
+    public static void setCountingEnabled(Context context, boolean enabled) {
+        context.getSharedPreferences("state", 0).edit().putBoolean(KEY_COUNTING, enabled).apply();
+    }
     private SharedPreferences mSettings;
     private PedometerSettings mPedometerSettings;
     private SharedPreferences mState;
@@ -65,6 +85,10 @@ public class StepService extends Service {
     private Utils mUtils;
     private SensorManager mSensorManager;
     private Sensor mSensor;
+    /** True when steps come from the phone's step detector chip rather than the accelerometer. */
+    private boolean mUsingHardwareSensor;
+    /** ISO date of the day the current totals belong to. */
+    private String mDay;
     private StepDetector mStepDetector;
     // private StepBuzzer mStepBuzzer; // used for debugging
     private StepDisplayer mStepDisplayer;
@@ -106,6 +130,8 @@ public class StepService extends Service {
         mSettings = PreferenceManager.getDefaultSharedPreferences(this);
         mPedometerSettings = new PedometerSettings(mSettings);
         mState = getSharedPreferences("state", 0);
+        setCountingEnabled(this, true);
+        archiveStoredDayIfOld();
 
         mUtils = Utils.getInstance();
         mUtils.setService(this);
@@ -122,6 +148,10 @@ public class StepService extends Service {
         // code be called whenever the phone enters standby mode.
         IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_OFF);
         registerReceiver(mReceiver, filter);
+
+        // Must be the first listener, so a step taken just after midnight
+        // is counted towards the new day.
+        mStepDetector.addStepListener(mDayWatcher);
 
         mStepDisplayer = new StepDisplayer(mPedometerSettings, mUtils);
         mStepDisplayer.setSteps(mSteps = mState.getInt("steps", 0));
@@ -206,10 +236,97 @@ public class StepService extends Service {
         mStateEditor.putFloat("distance", mDistance);
         mStateEditor.putFloat("speed", mSpeed);
         mStateEditor.putFloat("calories", mCalories);
+        mStateEditor.putString(KEY_DAY, mDay);
         mStateEditor.apply();
     }
 
+    /**
+     * On start-up: if the stored totals are from an earlier day, move them
+     * into History and start today from zero.
+     */
+    private void archiveStoredDayIfOld() {
+        String today = LocalDate.now().toString();
+        String storedDay = mState.getString(KEY_DAY, today);
+        if (!storedDay.equals(today)) {
+            History.saveDay(this, storedDay, mState.getInt("steps", 0),
+                    mState.getFloat("calories", 0));
+            mState.edit()
+                    .putInt("steps", 0)
+                    .putInt("pace", 0)
+                    .putFloat("distance", 0)
+                    .putFloat("speed", 0)
+                    .putFloat("calories", 0)
+                    .apply();
+        }
+        mDay = today;
+        mState.edit().putString(KEY_DAY, mDay).apply();
+    }
+
+    /** While running: at the first step (or app visit) after midnight, archive and reset. */
+    private void checkDayRollover() {
+        String today = LocalDate.now().toString();
+        if (mDay != null && !today.equals(mDay) && mStepDisplayer != null) {
+            Log.i(TAG, "New day: archiving " + mSteps + " steps for " + mDay);
+            History.saveDay(this, mDay, mSteps, mCalories);
+            mDay = today;
+            resetValues();
+            saveState();
+        }
+    }
+
+    private final StepListener mDayWatcher = new StepListener() {
+        public void onStep() {
+            checkDayRollover();
+        }
+        public void passValue() {
+        }
+    };
+
+    /** Forwards steps from the built-in step detector chip. */
+    private final SensorEventListener mHardwareStepListener = new SensorEventListener() {
+        public void onSensorChanged(SensorEvent event) {
+            // TYPE_STEP_DETECTOR fires once per step.
+            mStepDetector.onExternalStep();
+        }
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        }
+    };
+
+    private boolean hasActivityRecognitionPermission() {
+        return Build.VERSION.SDK_INT < 29
+                || checkSelfPermission(Manifest.permission.ACTIVITY_RECOGNITION)
+                    == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /** True when steps come from the phone's step sensor chip. */
+    public boolean isUsingHardwareSensor() {
+        return mUsingHardwareSensor;
+    }
+
+    /** Re-picks the step source, e.g. after the user grants permission or changes the setting. */
+    public void restartDetector() {
+        unregisterDetector();
+        registerDetector();
+    }
+
     private void registerDetector() {
+        // Prefer the phone's step detector chip: more accurate, far less battery.
+        Sensor stepSensor = null;
+        if (mPedometerSettings.useHardwareSensor() && hasActivityRecognitionPermission()) {
+            stepSensor = mSensorManager.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR);
+        }
+        if (stepSensor != null) {
+            mSensor = stepSensor;
+            mUsingHardwareSensor = true;
+            mSensorManager.registerListener(mHardwareStepListener, stepSensor,
+                    SensorManager.SENSOR_DELAY_NORMAL, 0);
+            Log.i(TAG, "Counting with the built-in step detector");
+            return;
+        }
+
+        // Fall back to the original accelerometer algorithm.
+        mUsingHardwareSensor = false;
+        Log.i(TAG, "Counting with the accelerometer");
         mSensor = mSensorManager.getDefaultSensor(
             Sensor.TYPE_ACCELEROMETER /*| 
             Sensor.TYPE_MAGNETIC_FIELD | 
@@ -221,6 +338,7 @@ public class StepService extends Service {
 
     private void unregisterDetector() {
         mSensorManager.unregisterListener(mStepDetector);
+        mSensorManager.unregisterListener(mHardwareStepListener);
     }
 
     @Override
@@ -278,6 +396,12 @@ public class StepService extends Service {
     
     public void reloadSettings() {
         mSettings = PreferenceManager.getDefaultSharedPreferences(this);
+        checkDayRollover();
+        // Switch step source if the "use phone's step sensor" setting changed.
+        if (mSensorManager != null && mPedometerSettings != null
+                && mPedometerSettings.useHardwareSensor() != mUsingHardwareSensor) {
+            restartDetector();
+        }
         
         if (mStepDetector != null) { 
             mStepDetector.setSensitivity(
