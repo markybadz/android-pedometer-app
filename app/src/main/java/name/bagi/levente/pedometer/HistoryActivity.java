@@ -17,7 +17,8 @@
  */
 package name.bagi.levente.pedometer;
 
-import android.app.Activity;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import android.content.SharedPreferences;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -41,7 +42,7 @@ import java.util.Map;
  * The last 30 days: a summary of the past week, then one card per day with
  * steps against the step goal, calories, and the Amazfit watch's steps.
  */
-public class HistoryActivity extends Activity {
+public class HistoryActivity extends AppCompatActivity {
     private static final int DAYS = 30;
     private static final DateTimeFormatter DAY_FORMAT =
             DateTimeFormatter.ofPattern("EEEE, d MMM", Locale.getDefault());
@@ -66,8 +67,23 @@ public class HistoryActivity extends Activity {
         mList.setPadding(pad, pad, pad, pad);
         ScrollView scroll = new ScrollView(this);
         scroll.setBackgroundColor(getColor(R.color.background));
+        scroll.setClipToPadding(false);
         scroll.addView(mList);
-        setContentView(scroll);
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(getColor(R.color.background));
+        Toolbar toolbar = (Toolbar) getLayoutInflater().inflate(R.layout.toolbar, root, false);
+        root.addView(toolbar);
+        root.addView(scroll, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, 0, 1));
+        setContentView(root);
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
+        SystemBars.padTop(toolbar);
+        SystemBars.padBottom(scroll);
 
         render();
 
@@ -88,6 +104,12 @@ public class HistoryActivity extends Activity {
                         }
                     });
         }
+    }
+
+    @Override
+    public boolean onSupportNavigateUp() {
+        finish();
+        return true;
     }
 
     private void render() {

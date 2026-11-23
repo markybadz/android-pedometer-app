@@ -110,27 +110,27 @@ public class SpeedNotifier implements PaceNotifier.Listener, SpeakingTimer.Liste
                 
                 boolean spoken = true;
                 if (mSpeed < mDesiredSpeed * (1 - much)) {
-                    mUtils.say("much faster!");
+                    mUtils.say(R.string.say_much_faster);
                 }
                 else
                 if (mSpeed > mDesiredSpeed * (1 + much)) {
-                    mUtils.say("much slower!");
+                    mUtils.say(R.string.say_much_slower);
                 }
                 else
                 if (mSpeed < mDesiredSpeed * (1 - normal)) {
-                    mUtils.say("faster!");
+                    mUtils.say(R.string.say_faster);
                 }
                 else
                 if (mSpeed > mDesiredSpeed * (1 + normal)) {
-                    mUtils.say("slower!");
+                    mUtils.say(R.string.say_slower);
                 }
                 else
                 if (mSpeed < mDesiredSpeed * (1 - little)) {
-                    mUtils.say("a little faster!");
+                    mUtils.say(R.string.say_little_faster);
                 }
                 else
                 if (mSpeed > mDesiredSpeed * (1 + little)) {
-                    mUtils.say("a little slower!");
+                    mUtils.say(R.string.say_little_slower);
                 }
                 else {
                     spoken = false;
@@ -149,7 +149,8 @@ public class SpeedNotifier implements PaceNotifier.Listener, SpeakingTimer.Liste
     public void speak() {
         if (mSettings.shouldTellSpeed()) {
             if (mSpeed >= .01f) {
-                mUtils.say(("" + (mSpeed + 0.000001f)).substring(0, 4) + (mIsMetric ? " kilometers per hour" : " miles per hour"));
+                mUtils.say(mIsMetric ? R.string.say_speed_kmh : R.string.say_speed_mph,
+                        String.format(java.util.Locale.getDefault(), "%.1f", mSpeed));
             }
         }
         

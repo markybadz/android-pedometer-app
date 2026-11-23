@@ -7,12 +7,15 @@ android {
     compileSdk 36
 
     defaultConfig {
-        applicationId 'name.bagi.levente.pedometer'
+        // Your own app ID: Google Play won't accept the original author's
+        // package name. (The Java package stays name.bagi.levente.pedometer.)
+        applicationId 'io.github.markybadz.pedometer'
         // Health Connect requires Android 8.0 (API 26) or newer.
         minSdk 26
-        targetSdk 34
-        versionCode 9
-        versionName '2.2.0'
+        // Google Play requires Android 16 (API 36) for new apps and updates.
+        targetSdk 36
+        versionCode 10
+        versionName '2.3.0'
 
         testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
     }
@@ -28,6 +31,16 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Play Store upload key, supplied by GitHub Actions secrets
+        // (see docs/PLAY_STORE.md). Never commit the real key.
+        if (System.getenv('RELEASE_KEYSTORE_PATH')) {
+            release {
+                storeFile file(System.getenv('RELEASE_KEYSTORE_PATH'))
+                storePassword System.getenv('RELEASE_STORE_PASSWORD')
+                keyAlias System.getenv('RELEASE_KEY_ALIAS')
+                keyPassword System.getenv('RELEASE_KEY_PASSWORD')
+            }
+        }
     }
 
     buildTypes {
@@ -36,6 +49,9 @@ android {
         }
         release {
             minifyEnabled false
+            if (System.getenv('RELEASE_KEYSTORE_PATH')) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 

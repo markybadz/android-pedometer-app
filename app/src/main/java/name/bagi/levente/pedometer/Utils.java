@@ -62,11 +62,22 @@ public class Utils implements TextToSpeech.OnInitListener {
         }
     }
 
+    /** Speaks a translatable prompt from strings.xml, filled in with args. */
+    public void say(int resId, Object... args) {
+        if (mService == null) return;
+        say(mService.getString(resId, args));
+    }
+
     // Implements TextToSpeech.OnInitListener.
     public void onInit(int status) {
         // status can be either TextToSpeech.SUCCESS or TextToSpeech.ERROR.
         if (status == TextToSpeech.SUCCESS) {
-            int result = mTts.setLanguage(Locale.US);
+            // Speak in the phone's language; fall back to US English.
+            int result = mTts.setLanguage(Locale.getDefault());
+            if (result == TextToSpeech.LANG_MISSING_DATA
+                    || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                result = mTts.setLanguage(Locale.US);
+            }
             if (result == TextToSpeech.LANG_MISSING_DATA ||
                 result == TextToSpeech.LANG_NOT_SUPPORTED) {
                // Language data is missing or the language is not supported.

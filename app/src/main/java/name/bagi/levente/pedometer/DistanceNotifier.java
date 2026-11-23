@@ -83,7 +83,8 @@ public class DistanceNotifier implements StepListener, SpeakingTimer.Listener {
     public void speak() {
         if (mSettings.shouldTellDistance()) {
             if (mDistance >= .001f) {
-                mUtils.say(("" + (mDistance + 0.000001f)).substring(0, 4) + (mIsMetric ? " kilometers" : " miles"));
+                mUtils.say(mIsMetric ? R.string.say_distance_km : R.string.say_distance_mi,
+                        String.format(java.util.Locale.getDefault(), "%.2f", mDistance));
                 // TODO: format numbers (no "." at the end)
             }
         }

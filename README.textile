@@ -35,6 +35,13 @@ h2. New in v2.0
 * Uses the phone's built-in step sensor when it has one (more accurate, far less battery), with the old accelerometer method as a fallback.
 * Resets at midnight, keeps counting after a reboot, metric units by default.
 
+h2. New in v2.3
+
+* *Ready for Google Play:* targets Android 16, its own package name (@io.github.markybadz.pedometer@), a signed release bundle, privacy policy and store assets. See "docs/PLAY_STORE.md":docs/PLAY_STORE.md and "docs/PRIVACY.md":docs/PRIVACY.md.
+* *Upgrading from an earlier build?* The package name changed, so v2.3 installs as a separate app. Uninstall the old Pedometer.
+* Material 3 look on every screen, and a new app icon.
+* Voice prompts follow your phone's language.
+
 h2. New in v2.2
 
 * *Google Health:* turn on Settings > Google Health > Share steps, and the phone's steps and distance go to Health Connect every 15 minutes, where Google Health (and other apps you allow) can show them. In Google Health, allow it to read steps from Health Connect.

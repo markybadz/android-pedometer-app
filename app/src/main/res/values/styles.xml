@@ -1,27 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- App theme: dark, no extra libraries -->
-    <style name="AppTheme" parent="@android:style/Theme.DeviceDefault">
-        <item name="android:windowBackground">@color/background</item>
-        <item name="android:colorAccent">@color/accent_steps</item>
-        <item name="android:statusBarColor">@color/background</item>
-        <item name="android:navigationBarColor">@color/background</item>
-    </style>
-
-    <!-- Settings screen: Material 3 (androidx), matching the main screen's colours -->
-    <style name="SettingsTheme" parent="Theme.Material3.Dark">
+    <!-- App theme: Material 3 dark. Each screen has its own toolbar
+         (res/layout/toolbar.xml) and pads itself clear of the system bars,
+         as Android 15+ draws apps edge-to-edge. -->
+    <style name="AppTheme" parent="Theme.Material3.Dark.NoActionBar">
         <item name="colorPrimary">@color/accent_steps</item>
         <item name="colorOnPrimary">#000000</item>
         <item name="colorSecondary">@color/accent_steps</item>
         <item name="colorPrimaryContainer">#1F3B2A</item>
         <item name="colorOnPrimaryContainer">@color/text_primary</item>
         <item name="android:colorBackground">@color/background</item>
+        <item name="android:windowBackground">@color/background</item>
         <item name="colorSurface">@color/background</item>
         <item name="colorSurfaceContainerHigh">@color/card</item>
         <item name="colorOnSurface">@color/text_primary</item>
         <item name="colorOnSurfaceVariant">@color/text_secondary</item>
-        <item name="android:statusBarColor">@color/background</item>
-        <item name="android:navigationBarColor">@color/background</item>
     </style>
 
     <style name="StatValue">

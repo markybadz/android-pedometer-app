@@ -97,6 +97,21 @@
 
     <string name="quit">Quit</string>
 
+    <!-- Spoken prompts (text-to-speech uses the phone's language when it can) -->
+    <string name="say_steps">%1$d steps</string>
+    <string name="say_pace">%1$d steps per minute</string>
+    <string name="say_distance_km">%1$s kilometers</string>
+    <string name="say_distance_mi">%1$s miles</string>
+    <string name="say_speed_kmh">%1$s kilometers per hour</string>
+    <string name="say_speed_mph">%1$s miles per hour</string>
+    <string name="say_calories">%1$d calories burned</string>
+    <string name="say_much_faster">much faster!</string>
+    <string name="say_much_slower">much slower!</string>
+    <string name="say_faster">faster!</string>
+    <string name="say_slower">slower!</string>
+    <string name="say_little_faster">a little faster!</string>
+    <string name="say_little_slower">a little slower!</string>
+
     <!-- History -->
     <string name="history">History</string>
     <string name="history_day">Day</string>

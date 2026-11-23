@@ -79,7 +79,7 @@ public class StepDisplayer implements StepListener, SpeakingTimer.Listener {
     public void speak() {
         if (mSettings.shouldTellSteps()) { 
             if (mCount > 0) {
-                mUtils.say("" + mCount + " steps");
+                mUtils.say(R.string.say_steps, mCount);
             }
         }
     }

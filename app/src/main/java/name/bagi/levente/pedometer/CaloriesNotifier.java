@@ -106,7 +106,7 @@ public class CaloriesNotifier implements StepListener, SpeakingTimer.Listener {
     public void speak() {
         if (mSettings.shouldTellCalories()) {
             if (mCalories > 0) {
-                mUtils.say("" + (int)mCalories + " calories burned");
+                mUtils.say(R.string.say_calories, (int) mCalories);
             }
         }
         

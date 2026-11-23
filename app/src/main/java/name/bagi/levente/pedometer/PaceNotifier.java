@@ -120,27 +120,27 @@ public class PaceNotifier implements StepListener, SpeakingTimer.Listener {
                         
                         boolean spoken = true;
                         if (mPace < mDesiredPace * (1 - much)) {
-                            mUtils.say("much faster!");
+                            mUtils.say(R.string.say_much_faster);
                         }
                         else
                         if (mPace > mDesiredPace * (1 + much)) {
-                            mUtils.say("much slower!");
+                            mUtils.say(R.string.say_much_slower);
                         }
                         else
                         if (mPace < mDesiredPace * (1 - normal)) {
-                            mUtils.say("faster!");
+                            mUtils.say(R.string.say_faster);
                         }
                         else
                         if (mPace > mDesiredPace * (1 + normal)) {
-                            mUtils.say("slower!");
+                            mUtils.say(R.string.say_slower);
                         }
                         else
                         if (mPace < mDesiredPace * (1 - little)) {
-                            mUtils.say("a little faster!");
+                            mUtils.say(R.string.say_little_faster);
                         }
                         else
                         if (mPace > mDesiredPace * (1 + little)) {
-                            mUtils.say("a little slower!");
+                            mUtils.say(R.string.say_little_slower);
                         }
                         else {
                             spoken = false;
@@ -175,7 +175,7 @@ public class PaceNotifier implements StepListener, SpeakingTimer.Listener {
     public void speak() {
         if (mSettings.shouldTellPace()) {
             if (mPace > 0) {
-                mUtils.say(mPace + " steps per minute");
+                mUtils.say(R.string.say_pace, mPace);
             }
         }
     }

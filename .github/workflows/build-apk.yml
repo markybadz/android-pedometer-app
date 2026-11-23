@@ -1,8 +1,12 @@
 name: Build APK
 
-# Builds the app on every push and publishes it as the "latest" release,
-# so the APK is always at:
-#   https://github.com/markybadz/android-pedometer-app/releases/latest/download/pedometer.apk
+# On every push to master:
+#  1. runs the unit tests and builds a debug APK, published as the "latest"
+#     release so it's always at
+#     https://github.com/markybadz/android-pedometer-app/releases/latest/download/pedometer.apk
+#  2. if the Play Store upload key is set up as repository secrets
+#     (see docs/PLAY_STORE.md), also builds a signed release bundle
+#     (pedometer-release.aab) to upload to Google Play.
 on:
   push:
     branches: [ master ]
@@ -14,6 +18,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      HAS_RELEASE_KEY: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -30,19 +36,38 @@ jobs:
           ./gradlew testDebugUnitTest assembleDebug --no-daemon --stacktrace
           cp app/build/outputs/apk/debug/app-debug.apk pedometer.apk
 
-      - name: Keep APK as a workflow artifact
+      - name: Build signed Play Store bundle
+        if: env.HAS_RELEASE_KEY == 'true'
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          export RELEASE_KEYSTORE_PATH="$RUNNER_TEMP/upload-keystore.jks"
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$RELEASE_KEYSTORE_PATH"
+          ./gradlew bundleRelease --no-daemon --stacktrace
+          cp app/build/outputs/bundle/release/app-release.aab pedometer-release.aab
+          rm -f "$RELEASE_KEYSTORE_PATH"
+
+      - name: Keep build outputs as workflow artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: pedometer-apk
-          path: pedometer.apk
+          name: pedometer-builds
+          path: |
+            pedometer.apk
+            pedometer-release.aab
+          if-no-files-found: ignore
 
       - name: Publish as latest release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          FILES="pedometer.apk"
+          if [ -f pedometer-release.aab ]; then FILES="$FILES pedometer-release.aab"; fi
           gh release delete apk-latest --yes --cleanup-tag || true
-          gh release create apk-latest pedometer.apk \
+          gh release create apk-latest $FILES \
             --title "Pedometer app_Android" \
-            --notes "Built automatically from \`${GITHUB_REF_NAME}\` at commit ${GITHUB_SHA::7}. Debug-signed: allow installing from unknown sources to install it." \
+            --notes "Built automatically from \`${GITHUB_REF_NAME}\` at commit ${GITHUB_SHA::7}. pedometer.apk is a test build: allow installing from unknown sources to install it. pedometer-release.aab (when present) is the signed bundle to upload to Google Play." \
             --target "$GITHUB_SHA" \
             --latest

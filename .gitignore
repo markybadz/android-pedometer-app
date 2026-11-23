@@ -14,3 +14,7 @@ gen/
 .project
 .settings/
 .classpath
+
+# Signing keys (the Play upload key lives in GitHub secrets, never in git)
+*.jks
+upload-keystore*

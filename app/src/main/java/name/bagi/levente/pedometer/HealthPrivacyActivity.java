@@ -37,6 +37,8 @@ public class HealthPrivacyActivity extends Activity {
         text.setText(R.string.health_privacy_text);
         ScrollView scroll = new ScrollView(this);
         scroll.addView(text);
+        scroll.setClipToPadding(false);
         setContentView(scroll);
+        SystemBars.padAll(scroll);
     }
 }

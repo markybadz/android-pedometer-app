@@ -137,14 +137,14 @@ object WatchSteps {
 
     /** Opens the Play Store page to install or update Health Connect (Android 13 and older). */
     @JvmStatic
-    fun installIntent(): Intent =
+    fun installIntent(context: Context): Intent =
         Intent(Intent.ACTION_VIEW).apply {
             setPackage("com.android.vending")
             data = Uri.parse(
                 "market://details?id=$PROVIDER_PACKAGE&url=healthconnect%3A%2F%2Fonboarding"
             )
             putExtra("overlay", true)
-            putExtra("callerId", "name.bagi.levente.pedometer")
+            putExtra("callerId", context.packageName)
         }
 
     /** Intent for the Health Connect permission screen. Start it with startActivityForResult. */

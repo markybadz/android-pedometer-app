@@ -1,9 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Main screen: step ring, stat cards, calorie goal, Amazfit watch, activity score -->
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background"
+    android:orientation="vertical"
+    android:background="@color/background">
+
+    <include layout="@layout/toolbar" />
+
+<ScrollView android:id="@+id/main_scroll"
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:clipToPadding="false"
     android:fillViewport="true">
 
     <LinearLayout
@@ -225,6 +234,9 @@
             <Button android:id="@+id/button_desired_pace_lower"
                 android:layout_width="@dimen/button"
                 android:layout_height="@dimen/button"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
                 android:textSize="@dimen/button_sign"
                 android:text="−" />
 
@@ -246,9 +258,14 @@
             <Button android:id="@+id/button_desired_pace_raise"
                 android:layout_width="@dimen/button"
                 android:layout_height="@dimen/button"
+                android:minWidth="0dp"
+                android:minHeight="0dp"
+                android:padding="0dp"
                 android:textSize="@dimen/button_sign"
                 android:text="+" />
         </LinearLayout>
 
     </LinearLayout>
 </ScrollView>
+
+</LinearLayout>

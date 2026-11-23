@@ -20,7 +20,8 @@ package name.bagi.levente.pedometer;
 
 
 import android.Manifest;
-import android.app.Activity;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.content.ComponentName;
@@ -51,7 +52,7 @@ import java.util.Set;
 
 
 
-public class Pedometer extends Activity {
+public class Pedometer extends AppCompatActivity {
 	private static final String TAG = "Pedometer";
     private SharedPreferences mSettings;
     private PedometerSettings mPedometerSettings;
@@ -90,6 +91,10 @@ public class Pedometer extends Activity {
         mPaceValue = 0;
         
         setContentView(R.layout.main);
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        SystemBars.padTop(toolbar);
+        SystemBars.padBottom(findViewById(R.id.main_scroll));
         
         mUtils = Utils.getInstance();
 
@@ -170,7 +175,7 @@ public class Pedometer extends Activity {
             mHealthView.setText(R.string.watch_install_health_connect);
             mHealthCard.setOnClickListener(v -> {
                 try {
-                    startActivity(WatchSteps.installIntent());
+                    startActivity(WatchSteps.installIntent(this));
                 } catch (RuntimeException ignored) {
                 }
             });
@@ -222,7 +227,7 @@ public class Pedometer extends Activity {
 
         if (WatchSteps.needsProviderUpdate(this)) {
             showWatchPrompt(getString(R.string.watch_install_health_connect),
-                    WatchSteps.installIntent(), false);
+                    WatchSteps.installIntent(this), false);
             return;
         }
         if (!WatchSteps.isAvailable(this)) {

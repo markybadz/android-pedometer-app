@@ -29,14 +29,22 @@ activity score, history, redesign). "Fixed" items are in v2.1.0.
 | J | Settings and History used the old Android screens | Settings rebuilt with current Android components (switches, current values shown, Material 3 dark theme). History shows a 7-day summary and a card per day with progress toward the step goal |
 | — | No way to see the phone's steps in Google Health | New "Share steps with Google Health" setting writes the phone's steps and distance to Health Connect every 15 minutes |
 
+## Fixed in v2.3.0 (Google Play readiness)
+
+| # | Problem | Fix |
+|---|---------|-----|
+| B | Targeted Android 14; Google Play requires Android 16 (API 36) | Targets API 36. Every screen now has its own toolbar and keeps clear of the status bar, navigation bar and cutout (Android 16 removed the edge-to-edge opt-out) |
+| C | Only a debug-signed APK | GitHub Actions builds a signed release bundle (`pedometer-release.aab`) once the upload key is added as secrets |
+| — | Used the original author's package name | Own package name `io.github.markybadz.pedometer` |
+| E | Voice prompts English-only, voice fixed to US English | Prompts in `strings.xml` (translatable); voice follows the phone's language, falling back to English |
+| — | No privacy policy, store assets or checklist | `docs/PRIVACY.md`, `docs/PLAY_STORE.md`, new adaptive app icon, 512 px icon and feature graphic |
+| — | Libraries could quietly add internet access | Internet permission explicitly removed |
+
 ## Still open
 
 | # | Gap | Impact | Suggested fix |
 |---|-----|--------|---------------|
-| B | `targetSdk` is 34 | Fine for installing the APK yourself, but Google Play requires a newer target for new apps and updates | Raise to 35/36 and handle edge-to-edge layout (content behind the status and navigation bars) |
-| C | Only a debug-signed APK is built | Debug builds are larger and not suitable for the Play Store | Add a release build with a private key stored as a GitHub secret, with code shrinking (R8) |
 | D | Distance and speed are stored in whatever unit is set at the time | Switching between km and miles mid-day mixes the two in today's total | Store metres internally and convert only for display |
-| E | Voice prompts ("faster!", "calories burned") are English-only and the voice is fixed to US English | Not translatable | Move prompts to `strings.xml`; use the phone's language for text-to-speech |
 | F | The calorie goal uses the phone's estimate only | Calories the watch records while the phone is left behind don't count toward the goal | Optionally use the higher of phone and watch calories |
 | G | Calorie estimate is a fixed factor × weight × distance | Rough; ignores pace, incline and heart rate | When watch calories are available, prefer them |
 | H | Watch data is only as fresh as the Zepp app's last sync | The watch card can lag by 15–30 minutes | Nothing to fix in this app; the card shows the last sync time |
